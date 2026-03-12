@@ -6,9 +6,10 @@ import os
 from fastapi.staticfiles import StaticFiles
 import os
 
+app = FastAPI()
 # Serve frontend folder
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
-app = FastAPI()
+
 
 # Allow frontend access
 origins = ["*"]
