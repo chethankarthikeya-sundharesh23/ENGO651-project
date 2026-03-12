@@ -4,12 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 import os
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 
 app = FastAPI()
 # Serve frontend folder
 app.mount("/static", StaticFiles(directory="Frontend", html=True), name="frontend")
 
+# Root route serves index.html
+@app.get("/")
+def serve_index():
+    return FileResponse(os.path.join("Frontend", "index.html"))
 
 # Allow frontend access
 origins = ["*"]
