@@ -3,7 +3,11 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 import os
+from fastapi.staticfiles import StaticFiles
+import os
 
+# Serve frontend folder
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 app = FastAPI()
 
 # Allow frontend access

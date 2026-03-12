@@ -27,7 +27,7 @@ async function sendQuery(){
 
     const query = document.getElementById("queryInput").value;
 
-    const response = await fetch("http://localhost:8000/ai-query",{
+    const response = await fetch("/ai-query",{
         method:"POST",
         headers:{
         "Content-Type":"application/json"
