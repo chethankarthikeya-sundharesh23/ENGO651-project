@@ -8,7 +8,7 @@ import os
 
 app = FastAPI()
 # Serve frontend folder
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/", StaticFiles(directory="Frontend", html=True), name="frontend")
 
 
 # Allow frontend access
