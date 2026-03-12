@@ -88,8 +88,8 @@ def ai_query(q: Query):
 
     user_text = q.query
 
-    # Use Gemini to extract location
-    destination = extract_destination(user_text)
+    # Use Gemini to extract location restricting to calgary for now
+    destination = extract_destination(user_text) + ", Calgary"
 
     # OpenStreetMap geocoding
     url = "https://nominatim.openstreetmap.org/search"
@@ -97,7 +97,9 @@ def ai_query(q: Query):
     params = {
         "q": destination,
         "format": "json",
-        "limit": 1
+        "limit": 1,
+        "viewbox": "-114.3,51.3,-113.7,50.9",  # Calgary bounding box
+        "bounded": 1
     }
 
     headers = {
