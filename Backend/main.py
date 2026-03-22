@@ -6,6 +6,23 @@ import os
 
 app = FastAPI()
 
+def get_weather(lat, lon):
+    url = "https://api.open-meteo.com/v1/forecast"
+
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current_weather": True
+    }
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    temp = data["current_weather"]["temperature"]
+    wind = data["current_weather"]["windspeed"]
+
+    return temp, wind
+
 # Allow frontend access
 origins = ["*"]
 
@@ -114,9 +131,12 @@ def ai_query(q: Query):
 
     lat = float(data[0]["lat"])
     lon = float(data[0]["lon"])
+    temp, wind = get_weather(lat, lon)
 
     return {
-        "destination": destination,
-        "lat": lat,
-        "lon": lon
+    "destination": destination,
+    "lat": lat,
+    "lon": lon,
+    "temperature": temp,
+    "wind": wind
     }

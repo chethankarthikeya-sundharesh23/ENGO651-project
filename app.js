@@ -40,7 +40,9 @@ async function sendQuery(){
     });
 
     const data = await response.json();
-
+    const temp = data.temperature;
+    const wind = data.wind;
+    alert(`Temperature: ${temp}°C, Wind: ${wind} km/h`);
     const lat = data.lat;
     const lon = data.lon;
 
