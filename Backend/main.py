@@ -104,7 +104,73 @@ def interpret_weather(code):
         return "Clear"
     else:
         return "Cloudy"
-        
+
+def calculate_risk(temp, wind, slope, condition, weather_type):
+
+    score = 0
+    reasons = []
+
+    # --- include base info ---
+    reasons.append(f"weather: {weather_type}")
+    reasons.append(f"road condition: {condition}")
+
+    # temperature
+    if temp < 0:
+        score += 2
+        reasons.append("freezing temperature")
+    elif temp < 3:
+        score += 1
+        reasons.append("near freezing")
+    else:
+        reasons.append("above freezing temperature")
+
+    # weather type
+    if weather_type == "Snow":
+        score += 2
+        reasons.append("snowfall")
+    elif weather_type == "Rain" and temp <= 0:
+        score += 2
+        reasons.append("freezing rain")
+
+    # wind
+    if wind > 30:
+        score += 1
+        reasons.append("strong wind")
+    else:
+        reasons.append("moderate wind")
+
+    # slope
+    if slope > 0.2:
+        score += 2
+        reasons.append("steep slope")
+    elif slope > 0.1:
+        score += 1
+        reasons.append("moderate slope")
+    else:
+        reasons.append("flat terrain")
+
+    # Alberta 511
+    cond = condition.lower()
+
+    if "snow" in cond:
+        score += 2
+        reasons.append("snow-covered road")
+    elif "ice" in cond:
+        score += 3
+        reasons.append("icy road")
+    elif "closed" in cond:
+        score += 3
+        reasons.append("road closed")
+
+    # final level
+    if score >= 5:
+        level = "HIGH"
+    elif score >= 3:
+        level = "MEDIUM"
+    else:
+        level = "LOW"
+
+    return score, level, reasons
 # Allow frontend access
 origins = ["*"]
 
@@ -217,6 +283,9 @@ def ai_query(q: Query):
     weather_type = interpret_weather(weather_code)
     slope = get_slope(lat, lon)
     condition = get_road_condition(lat, lon)
+    risk_score, risk_level, reasons = calculate_risk(
+    temp, wind, slope, condition, weather_type
+    )
     return {
     "destination": destination,
     "lat": lat,
@@ -225,6 +294,9 @@ def ai_query(q: Query):
     "temperature": temp,
     "wind": wind,
     "slope": slope,
-    "condition": condition
+    "condition": condition,
+    "risk_score": risk_score,
+    "risk_level": risk_level,
+    "reasons": reasons
     }
 

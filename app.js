@@ -45,9 +45,13 @@ async function sendQuery(){
     const wind = data.wind;
     const slope = data.slope;
     const condition = data.condition;
+    const risk = data.risk_level;
+    const reasons = data.reasons;
     // ALERT
-    alert(`Temp: ${temp}°C | Wind: ${wind} km/h | Weather: ${weatherType} | Slope: ${slope} | Condition: ${condition}`);
-
+    alert(`Temp: ${temp}°C | Wind: ${wind} km/h | Weather: ${weatherType} | Slope: ${slope} | Condition: ${condition}
+    Risk: ${risk}
+    Reasons: ${reasons.join(", ")}`);
+    
     const lat = data.lat;
     const lon = data.lon;
 
