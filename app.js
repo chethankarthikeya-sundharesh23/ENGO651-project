@@ -40,9 +40,14 @@ async function sendQuery(){
     });
 
     const data = await response.json();
+
     const temp = data.temperature;
     const wind = data.wind;
-    alert(`Temperature: ${temp}°C, Wind: ${wind} km/h`);
+    const slope = data.slope;
+
+    // ✅ FIXED ALERT
+    alert(`Temp: ${temp}°C | Wind: ${wind} km/h | Slope: ${slope}`);
+
     const lat = data.lat;
     const lon = data.lon;
 
@@ -54,7 +59,6 @@ async function sendQuery(){
     .openPopup();
 
     getRoute(userLat,userLon,lat,lon);
-
 }
 
 async function getRoute(startLat, startLon, endLat, endLon){
