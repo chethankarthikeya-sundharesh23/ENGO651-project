@@ -40,13 +40,13 @@ async function sendQuery(){
     });
 
     const data = await response.json();
-
+    const weatherType = data.weather_type;
     const temp = data.temperature;
     const wind = data.wind;
     const slope = data.slope;
     const condition = data.condition;
     // ALERT
-    alert(`Temp: ${temp}°C | Wind: ${wind} km/h | Slope: ${slope} | Condition: ${condition}`);
+    alert(`Temp: ${temp}°C | Wind: ${wind} km/h | Weather: ${weatherType} | Slope: ${slope} | Condition: ${condition}`);
 
     const lat = data.lat;
     const lon = data.lon;

@@ -32,6 +32,7 @@ def get_slope(lat, lon):
 
     except:
         return 0
+
 def get_weather(lat, lon):
     url = "https://api.open-meteo.com/v1/forecast"
 
@@ -44,10 +45,15 @@ def get_weather(lat, lon):
     response = requests.get(url, params=params)
     data = response.json()
 
-    temp = data["current_weather"]["temperature"]
-    wind = data["current_weather"]["windspeed"]
+    current = data.get("current_weather")
 
-    return temp, wind
+    if not current:
+        return 0, 0, 0   # fallback
+
+    temp = current.get("temperature", 0)
+    wind = current.get("windspeed", 0)
+    weather_code = current.get("weathercode", 0)
+    return temp, wind, weather_code
 
 def get_road_condition(lat, lon):
 
@@ -85,6 +91,20 @@ def get_road_condition(lat, lon):
         print("511 ERROR:", e)
         return "No Data"
 
+def interpret_weather(code):
+
+    if code is None:
+        return "Unknown"
+
+    if code in [71, 73, 75, 77, 85, 86]:
+        return "Snow"
+    elif code in [61, 63, 65]:
+        return "Rain"
+    elif code == 0:
+        return "Clear"
+    else:
+        return "Cloudy"
+        
 # Allow frontend access
 origins = ["*"]
 
@@ -193,13 +213,15 @@ def ai_query(q: Query):
 
     lat = float(data[0]["lat"])
     lon = float(data[0]["lon"])
-    temp, wind = get_weather(lat, lon)
+    temp, wind, weather_code = get_weather(lat, lon)
+    weather_type = interpret_weather(weather_code)
     slope = get_slope(lat, lon)
     condition = get_road_condition(lat, lon)
     return {
     "destination": destination,
     "lat": lat,
     "lon": lon,
+    "weather_type": weather_type,
     "temperature": temp,
     "wind": wind,
     "slope": slope,
