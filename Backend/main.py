@@ -3,9 +3,35 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 import os
+import rasterio
 
+dem = rasterio.open("dem.tif")
 app = FastAPI()
+def get_elevation(lat, lon):
+    row, col = dem.index(lon, lat)
+    elevation = dem.read(1)[row, col]
+    return float(elevation)
 
+def get_slope(lat, lon):
+
+    row, col = dem.index(lon, lat)
+
+    data = dem.read(1)
+
+    try:
+        center = data[row, col]
+        right = data[row, col + 1]
+        down = data[row + 1, col]
+
+        dx = abs(right - center)
+        dy = abs(down - center)
+
+        slope = (dx + dy) / 2
+
+        return float(slope)
+
+    except:
+        return 0
 def get_weather(lat, lon):
     url = "https://api.open-meteo.com/v1/forecast"
 
@@ -132,11 +158,12 @@ def ai_query(q: Query):
     lat = float(data[0]["lat"])
     lon = float(data[0]["lon"])
     temp, wind = get_weather(lat, lon)
-
+    slope = get_slope(lat, lon)
     return {
     "destination": destination,
     "lat": lat,
     "lon": lon,
     "temperature": temp,
-    "wind": wind
+    "wind": wind,
+    "slope": slope
     }
