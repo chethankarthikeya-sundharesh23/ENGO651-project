@@ -1,12 +1,14 @@
+// Store user location globally
 var userLat, userLon;
+// Initialize map centered on Calgary
 var map = L.map('map').setView([51.0447, -114.0719], 12);
 
+// Add OpenStreetMap basemap
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: 'OpenStreetMap'
 }).addTo(map);
 
-
-// get user location
+// Get user location
 if (navigator.geolocation) {
 
     navigator.geolocation.getCurrentPosition(function(position){
@@ -25,10 +27,11 @@ if (navigator.geolocation) {
 
 }
 
+// Send user query to backend 
 async function sendQuery(){
 
     const query = document.getElementById("queryInput").value;
-
+    // Call backend API to process query
     const response = await fetch("http://localhost:8000/ai-query",{
         method:"POST",
         headers:{
@@ -38,49 +41,40 @@ async function sendQuery(){
         query: query
     })
     });
-
+    // Get response data (destination + weather + risk info)
     const data = await response.json();
-    const weatherType = data.weather_type;
-    const temp = data.temperature;
-    const wind = data.wind;
-    const slope = data.slope;
-    const condition = data.condition;
-    const risk = data.risk_level;
-    const reasons = data.reasons;
+    // Extract destination coordinates
     const lat = data.lat;
     const lon = data.lon;
-
+    // Move map to destination
     map.setView([lat,lon],14);
-
+    // Add destination marker
     L.marker([lat,lon])
     .addTo(map)
     .bindPopup("Destination")
     .openPopup();
-
+    // Call routing function
     getRoute(userLat,userLon,lat,lon);
 }
-
+// Get route from OSRM and compute route risk
 async function getRoute(startLat, startLon, endLat, endLon){
-
+    // Request route from OSRM API
     const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
-
     const response = await fetch(url);
     const data = await response.json();
-
+    // Extract route geometry
     const route = data.routes[0].geometry;
-
-    // draw route
+    // Draw route on map
     L.geoJSON(route, {
         color: 'blue',
         weight: 5
     }).addTo(map);
 
-    // 🔥 STEP: sample route points
+    // Sample route points
     const coords = route.coordinates;
-
+    // Take every 20th point
     const sampled = coords.filter((_, i) => i % 20 === 0); // every 20th point
-
-    // 🔥 send to backend for risk
+    // Send to backend for risk
     const riskResponse = await fetch("http://localhost:8000/route-risk", {
         method: "POST",
         headers: {
@@ -90,15 +84,15 @@ async function getRoute(startLat, startLon, endLat, endLon){
             route: sampled
         })
     });
-
+    // Receive route risk result
     const riskData = await riskResponse.json();
     console.log("Route Risk Data:", riskData);
+    // Display risk information in panel
     showRiskPanel(riskData);
 }
+// Display risk results in UI panel
 function showRiskPanel(data) {
-
     const panel = document.getElementById("riskPanel");
-
     panel.innerHTML = `
     <h3>Route Risk: ${data.risk_level}</h3>
     <p><strong>Score:</strong> ${data.avg_score}</p>
