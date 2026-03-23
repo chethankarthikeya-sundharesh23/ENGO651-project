@@ -12,10 +12,11 @@ def get_elevation(lat, lon):
     elevation = dem.read(1)[row, col]
     return float(elevation)
 
+import math
+
 def get_slope(lat, lon):
 
     row, col = dem.index(lon, lat)
-
     data = dem.read(1)
 
     try:
@@ -23,14 +24,23 @@ def get_slope(lat, lon):
         right = data[row, col + 1]
         down = data[row + 1, col]
 
-        dx = abs(right - center)
-        dy = abs(down - center)
+        # approximate meters per degree
+        meters_per_degree = 111320  # ~111 km
 
-        slope = (dx + dy) / 2
+        cellsize_deg = dem.res[0]
+        cellsize_m = cellsize_deg * meters_per_degree
+
+        dx = (right - center) / cellsize_m
+        dy = (down - center) / cellsize_m
+
+        slope = math.sqrt(dx**2 + dy**2)
+
+        print("Correct slope:", slope)
 
         return float(slope)
 
-    except:
+    except Exception as e:
+        print("Slope error:", e)
         return 0
 
 def get_weather(lat, lon):
@@ -140,10 +150,10 @@ def calculate_risk(temp, wind, slope, condition, weather_type):
         reasons.append("moderate wind")
 
     # slope
-    if slope > 0.2:
+    if slope > 0.15:
         score += 2
         reasons.append("steep slope")
-    elif slope > 0.1:
+    elif slope > 0.05:
         score += 1
         reasons.append("moderate slope")
     else:
@@ -300,3 +310,132 @@ def ai_query(q: Query):
     "reasons": reasons
     }
 
+class RouteRequest(BaseModel):
+    route: list
+
+
+class RouteRequest(BaseModel):
+    route: list
+
+
+class RouteRequest(BaseModel):
+    route: list
+
+
+@app.post("/route-risk")
+def route_risk(req: RouteRequest):
+
+    if not req.route:
+        return {"error": "No route points"}
+
+    # =========================
+    # GLOBAL factors 
+    # =========================
+    first_point = req.route[0]
+    lon, lat = first_point
+
+    temp, wind, weather_code = get_weather(lat, lon)
+    weather_type = interpret_weather(weather_code)
+
+    global_score = 0
+    global_reasons = []
+
+    # temperature
+    if temp < 0:
+        global_score += 2
+        global_reasons.append(f"temperature: {temp}°C (freezing)")
+    elif temp < 3:
+        global_score += 1
+        global_reasons.append(f"temperature: {temp}°C (near freezing)")
+    else:
+        global_reasons.append(f"temperature: {temp}°C (above freezing)")
+
+    # weather
+    if weather_type == "Snow":
+        global_score += 2
+        global_reasons.append("snowfall")
+    elif weather_type == "Rain" and temp <= 0:
+        global_score += 2
+        global_reasons.append("freezing rain")
+    else:
+        global_reasons.append(f"weather: {weather_type}")
+
+    # wind
+    if wind > 30:
+        global_score += 1
+        global_reasons.append("strong wind")
+    else:
+        global_reasons.append("moderate wind")
+
+    # =========================
+    # LOCAL factors (along route)
+    # =========================
+    local_score = 0
+
+    # slope counters
+    steep_count = 0
+    moderate_count = 0
+    flat_count = 0
+
+    for point in req.route:
+
+        lon, lat = point
+
+        slope = get_slope(lat, lon)
+        condition = get_road_condition(lat, lon)
+
+        # slope classification
+        if slope > 0.15:
+            local_score += 2
+            steep_count += 1
+        elif slope > 0.05:
+            local_score += 1
+            moderate_count += 1
+        else:
+            flat_count += 1
+
+        # road condition
+        cond = condition.lower()
+
+        if "snow" in cond:
+            local_score += 2
+        elif "ice" in cond:
+            local_score += 3
+        elif "closed" in cond:
+            local_score += 3
+
+    # =========================
+    # Combine scores
+    # =========================
+    total_score = global_score + local_score
+
+    # =========================
+    # Risk level
+    # =========================
+    if total_score >= 10:
+        final_level = "HIGH"
+    elif total_score >= 5:
+        final_level = "MEDIUM"
+    else:
+        final_level = "LOW"
+
+    # =========================
+    # Clean slope summary
+    # =========================
+    slope_summary = f"road slope: {moderate_count} moderate, {flat_count} flat"
+
+    # include steep if exists
+    if steep_count > 0:
+        slope_summary = f"road slope: {steep_count} steep, {moderate_count} moderate, {flat_count} flat"
+
+    # =========================
+    #  Final reasons
+    # =========================
+    reasons = global_reasons.copy()
+    reasons.append(slope_summary)
+
+    return {
+        "avg_score": total_score,
+        "risk_level": final_level,
+        "reasons": reasons
+    }

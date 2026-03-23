@@ -47,11 +47,6 @@ async function sendQuery(){
     const condition = data.condition;
     const risk = data.risk_level;
     const reasons = data.reasons;
-    // ALERT
-    alert(`Temp: ${temp}°C | Wind: ${wind} km/h | Weather: ${weatherType} | Slope: ${slope} | Condition: ${condition}
-    Risk: ${risk}
-    Reasons: ${reasons.join(", ")}`);
-    
     const lat = data.lat;
     const lon = data.lon;
 
@@ -74,9 +69,44 @@ async function getRoute(startLat, startLon, endLat, endLon){
 
     const route = data.routes[0].geometry;
 
-    // draw route on map
+    // draw route
     L.geoJSON(route, {
         color: 'blue',
         weight: 5
     }).addTo(map);
+
+    // 🔥 STEP: sample route points
+    const coords = route.coordinates;
+
+    const sampled = coords.filter((_, i) => i % 20 === 0); // every 20th point
+
+    // 🔥 send to backend for risk
+    const riskResponse = await fetch("http://localhost:8000/route-risk", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            route: sampled
+        })
+    });
+
+    const riskData = await riskResponse.json();
+    console.log("Route Risk Data:", riskData);
+    showRiskPanel(riskData);
+}
+function showRiskPanel(data) {
+
+    const panel = document.getElementById("riskPanel");
+
+    panel.innerHTML = `
+    <h3>Route Risk: ${data.risk_level}</h3>
+    <p><strong>Score:</strong> ${data.avg_score}</p>
+    <p>${data.reasons.find(r => r.includes("temperature"))}</p>
+    <p>${data.reasons.find(r => r.includes("weather"))}</p>
+    <p>${data.reasons.find(r => r.includes("wind"))}</p>
+    <p>${data.reasons.find(r => r.includes("road slope"))}</p>
+    `;
+
+    panel.style.display = "block";
 }
