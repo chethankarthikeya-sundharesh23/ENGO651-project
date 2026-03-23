@@ -1,0 +1,3 @@
+Backend/*.tif
+__pycache__/
+*.pyc
