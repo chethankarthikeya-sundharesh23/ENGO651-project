@@ -49,6 +49,42 @@ def get_weather(lat, lon):
 
     return temp, wind
 
+def get_road_condition(lat, lon):
+
+    url = "https://services.arcgis.com/ArcGIS/rest/services/Traffic_Events/FeatureServer/0/query"
+
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "geometry": f"{lon},{lat}",
+        "geometryType": "esriGeometryPoint",
+        "inSR": "4326",
+        "spatialRel": "esriSpatialRelIntersects",
+        "distance": 5000,
+        "units": "esriSRUnit_Meter",
+        "f": "json"
+    }
+
+    try:
+        response = requests.get(url, params=params)
+
+        if response.status_code != 200:
+            return "No Data"
+
+        data = response.json()
+        features = data.get("features", [])
+
+        if not features:
+            return "Clear Road"
+
+        attr = features[0]["attributes"]
+
+        return attr.get("DESCRIPTION", "Unknown")
+
+    except Exception as e:
+        print("511 ERROR:", e)
+        return "No Data"
+
 # Allow frontend access
 origins = ["*"]
 
@@ -159,11 +195,14 @@ def ai_query(q: Query):
     lon = float(data[0]["lon"])
     temp, wind = get_weather(lat, lon)
     slope = get_slope(lat, lon)
+    condition = get_road_condition(lat, lon)
     return {
     "destination": destination,
     "lat": lat,
     "lon": lon,
     "temperature": temp,
     "wind": wind,
-    "slope": slope
+    "slope": slope,
+    "condition": condition
     }
+

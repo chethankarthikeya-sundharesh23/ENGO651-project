@@ -44,9 +44,9 @@ async function sendQuery(){
     const temp = data.temperature;
     const wind = data.wind;
     const slope = data.slope;
-
-    // ✅ FIXED ALERT
-    alert(`Temp: ${temp}°C | Wind: ${wind} km/h | Slope: ${slope}`);
+    const condition = data.condition;
+    // ALERT
+    alert(`Temp: ${temp}°C | Wind: ${wind} km/h | Slope: ${slope} | Condition: ${condition}`);
 
     const lat = data.lat;
     const lon = data.lon;
