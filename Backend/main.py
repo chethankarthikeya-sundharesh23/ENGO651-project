@@ -161,9 +161,9 @@ def ai_query(q: Query):
     res = requests.get(url, params=params, headers=headers)
     data = res.json()
 
-    # 🔥 FALLBACK if nothing found
+    #FALLBACK if nothing found
     if not data:
-        print(f"⚠️ No Calgary results, trying global search... {extract_destination(q.query)}")
+        print(f"No Calgary results, trying global search... {extract_destination(q.query)}")
 
         params = {
             "q": extract_destination(q.query),  # NO ", Calgary"
