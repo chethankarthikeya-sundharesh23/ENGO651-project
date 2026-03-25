@@ -264,7 +264,8 @@ def ai_query(q: Query):
     user_text = q.query
 
     # Use Gemini to extract location restricting to calgary for now
-    destination = extract_destination(user_text) + ", Calgary"
+    place = extract_destination(q.query)
+    destination = place + ", Calgary"
 
     # OpenStreetMap geocoding
     url = "https://nominatim.openstreetmap.org/search"
@@ -284,7 +285,18 @@ def ai_query(q: Query):
     response = requests.get(url, params=params, headers=headers)
     data = response.json()
 
+    if not data:
+        print("Trying without Calgary restriction...")
+        params = {
+            "q": place,
+            "format": "json",
+            "limit": 5
+        }
+        response = requests.get(url, params=params, headers=headers)
+        data = response.json()
+
     if len(data) == 0:
+        print("Location not found")
         return {"error": "Location not found"}
 
     lat = float(data[0]["lat"])
