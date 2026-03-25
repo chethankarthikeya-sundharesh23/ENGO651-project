@@ -43,6 +43,11 @@ async function sendQuery(){
     });
     // Get response data (destination + weather + risk info)
     const data = await response.json();
+    if (data.error) {
+        alert(data.error);
+        console.log("Backend error:", data.error);
+        return;
+    }
     // Extract destination coordinates
     const lat = data.lat;
     const lon = data.lon;
@@ -58,37 +63,78 @@ async function sendQuery(){
 }
 // Get route from OSRM and compute route risk
 async function getRoute(startLat, startLon, endLat, endLon){
-    // Request route from OSRM API
-    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson&alternatives=true`;
+
     const response = await fetch(url);
     const data = await response.json();
-    // Extract route geometry
-    const route = data.routes[0].geometry;
-    // Draw route on map
-    L.geoJSON(route, {
-        color: 'blue',
-        weight: 5
-    }).addTo(map);
+    console.log("OSRM full response:", data);
+    console.log("Number of routes:", data.routes.length);
 
-    // Sample route points
-    const coords = route.coordinates;
-    // Take every 20th point
-    const sampled = coords.filter((_, i) => i % 20 === 0); // every 20th point
-    // Send to backend for risk
-    const riskResponse = await fetch("http://localhost:8000/route-risk", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            route: sampled
-        })
+    const routes = data.routes;
+
+    let bestRoute = null;
+    let bestRisk = Infinity;
+
+    // clear old layers
+    map.eachLayer(layer => {
+        if (layer instanceof L.Polyline) {
+            map.removeLayer(layer);
+        }
     });
-    // Receive route risk result
-    const riskData = await riskResponse.json();
-    console.log("Route Risk Data:", riskData);
-    // Display risk information in panel
-    showRiskPanel(riskData);
+
+    for (let i = 0; i < routes.length; i++) {
+
+        const route = routes[i].geometry;
+
+        // draw ALL routes (gray first)
+        L.geoJSON(route, {
+            color: 'gray',
+            weight: 3,
+            opacity: 0.5
+        }).addTo(map);
+
+        // sample points
+        const coords = route.coordinates;
+        const sampled = coords.filter((_, idx) => idx % 20 === 0);
+
+        // send to backend
+        const riskResponse = await fetch("http://localhost:8000/route-risk", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                route: sampled
+            })
+        });
+
+        const riskData = await riskResponse.json();
+
+        console.log(`Route ${i} risk:`, riskData);
+
+        // find best (LOWEST score)
+        if (riskData.avg_score < bestRisk) {
+            bestRisk = riskData.avg_score;
+            bestRoute = {
+                geometry: route,
+                risk: riskData
+            };
+        }
+    }
+
+    // 🟢 Draw BEST route
+    if (bestRoute) {
+
+        L.geoJSON(bestRoute.geometry, {
+            color: 'blue',
+            weight: 6
+        }).addTo(map);
+
+        showRiskPanel(bestRoute.risk);
+
+        console.log("Safest route selected");
+    }
 }
 // Display risk results in UI panel
 function showRiskPanel(data) {
