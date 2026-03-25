@@ -28,7 +28,7 @@ async function loadDEMLayer() {
         fillOpacity: 0.1
     });
 
-    // ✅ create control AFTER layer exists
+    // create control AFTER layer exists
     const overlayMaps = {
         "DEM Coverage": demLayer
     };
