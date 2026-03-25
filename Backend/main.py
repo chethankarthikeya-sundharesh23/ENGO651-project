@@ -451,3 +451,14 @@ def route_risk(req: RouteRequest):
         "risk_level": final_level,
         "reasons": reasons
     }
+@app.get("/dem-bounds")
+def dem_bounds():
+
+    bounds = dem.bounds
+
+    return {
+        "min_lat": bounds.bottom,
+        "max_lat": bounds.top,
+        "min_lon": bounds.left,
+        "max_lon": bounds.right
+    }

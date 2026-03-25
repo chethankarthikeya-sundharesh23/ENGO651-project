@@ -8,6 +8,37 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: 'OpenStreetMap'
 }).addTo(map);
 
+let demLayer;
+let layerControl;
+
+// fetch dem bounds
+async function loadDEMLayer() {
+
+    const response = await fetch("http://localhost:8000/dem-bounds");
+    const bounds = await response.json();
+
+    const rectangleBounds = [
+        [bounds.min_lat, bounds.min_lon],
+        [bounds.max_lat, bounds.max_lon]
+    ];
+
+    demLayer = L.rectangle(rectangleBounds, {
+        color: "red",
+        weight: 2,
+        fillOpacity: 0.1
+    });
+
+    // ✅ create control AFTER layer exists
+    const overlayMaps = {
+        "DEM Coverage": demLayer
+    };
+
+    layerControl = L.control.layers(null, overlayMaps).addTo(map);
+}
+
+// call it
+loadDEMLayer();
+
 // Get user location
 if (navigator.geolocation) {
 
@@ -123,7 +154,7 @@ async function getRoute(startLat, startLon, endLat, endLon){
         }
     }
 
-    // 🟢 Draw BEST route
+    // Draw BEST route
     if (bestRoute) {
 
         L.geoJSON(bestRoute.geometry, {
