@@ -92,6 +92,53 @@ async function sendQuery(){
     // Call routing function
     getRoute(userLat,userLon,lat,lon);
 }
+function generateWaypoints(startLat, startLon, endLat, endLon) {
+
+    const midLat = (startLat + endLat) / 2;
+    const midLon = (startLon + endLon) / 2;
+
+    const offset = 0.05; // ~5 km deviation
+
+    return [
+        [midLat + offset, midLon],     // north deviation
+        [midLat - offset, midLon],     // south
+        [midLat, midLon + offset],     // east
+        [midLat, midLon - offset]      // west
+    ];
+}
+async function getRouteViaWaypoint(startLat, startLon, wpLat, wpLon, endLat, endLon) {
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${wpLon},${wpLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.routes || data.routes.length === 0) return null;
+
+    return data.routes[0];
+}
+function isSimilarRoute(routeA, routeB) {
+
+    const a = routeA.geometry.coordinates;
+    const b = routeB.geometry.coordinates;
+
+    if (!a || !b) return false;
+
+    const minLen = Math.min(a.length, b.length);
+
+    let similarCount = 0;
+
+    for (let i = 0; i < minLen; i += 10) {
+        const dx = Math.abs(a[i][0] - b[i][0]);
+        const dy = Math.abs(a[i][1] - b[i][1]);
+
+        if (dx < 0.001 && dy < 0.001) {
+            similarCount++;
+        }
+    }
+
+    return (similarCount / (minLen / 10)) > 0.7;
+}
 // Get route from OSRM and compute route risk
 async function getRoute(startLat, startLon, endLat, endLon){
 
@@ -100,10 +147,47 @@ async function getRoute(startLat, startLon, endLat, endLon){
     const response = await fetch(url);
     const data = await response.json();
     console.log("OSRM full response:", data);
-    console.log("Number of routes:", data.routes.length);
 
-    const routes = data.routes;
+    const waypointRoutes = [];
+    const waypoints = generateWaypoints(startLat, startLon, endLat, endLon);
+    for (let wp of waypoints) {
 
+        const wpLat = wp[0];
+        const wpLon = wp[1];
+
+        const wpRoute = await getRouteViaWaypoint(
+            startLat, startLon,
+            wpLat, wpLon,
+            endLat, endLon
+        );
+
+        if (wpRoute) {
+            waypointRoutes.push(wpRoute);
+        }
+    }
+    const routes = [
+        ...data.routes,
+        ...waypointRoutes
+    ];
+    console.log("Total routes before filtering:", routes.length);
+    const uniqueRoutes = [];
+
+    for (let r of routes) {
+
+        let duplicate = false;
+
+        for (let u of uniqueRoutes) {
+            if (isSimilarRoute(r, u)) {
+                duplicate = true;
+                break;
+            }
+        }
+
+        if (!duplicate) {
+            uniqueRoutes.push(r);
+        }
+    }
+    console.log("Unique routes after filtering:", uniqueRoutes.length);
     let bestRoute = null;
     let bestRisk = Infinity;
 
@@ -114,18 +198,18 @@ async function getRoute(startLat, startLon, endLat, endLon){
         }
     });
 
-    for (let i = 0; i < routes.length; i++) {
+    for (let i = 0; i < uniqueRoutes.length; i++) {
 
-        const routeObj = routes[i];
+        const routeObj = uniqueRoutes[i];
         const route = routeObj.geometry;
 
         const baseDuration = routeObj.duration;
 
         // draw ALL routes (gray first)
         L.geoJSON(route, {
-            color: 'gray',
+            color: 'red',
             weight: 3,
-            opacity: 0.5
+            opacity: 0.6
         }).addTo(map);
 
         // sample points
@@ -148,8 +232,13 @@ async function getRoute(startLat, startLon, endLat, endLon){
         console.log(`Route ${i} risk:`, riskData);
 
         // find best (LOWEST score)
-        if (riskData.avg_score < bestRisk) {
-            bestRisk = riskData.avg_score;
+        const combinedScore = riskData.avg_score * 10 + (baseDuration / 60);
+        console.log(`Route ${i}:`);
+        console.log("  Duration (min):", Math.round(baseDuration / 60));
+        console.log("  Risk score:", riskData.avg_score);
+        console.log("  Combined score:", combinedScore);
+        if (combinedScore < bestRisk) {
+            bestRisk = combinedScore;
             bestRoute = {
                 geometry: route,
                 risk: riskData,
