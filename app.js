@@ -116,7 +116,10 @@ async function getRoute(startLat, startLon, endLat, endLon){
 
     for (let i = 0; i < routes.length; i++) {
 
-        const route = routes[i].geometry;
+        const routeObj = routes[i];
+        const route = routeObj.geometry;
+
+        const baseDuration = routeObj.duration;
 
         // draw ALL routes (gray first)
         L.geoJSON(route, {
@@ -149,7 +152,8 @@ async function getRoute(startLat, startLon, endLat, endLon){
             bestRisk = riskData.avg_score;
             bestRoute = {
                 geometry: route,
-                risk: riskData
+                risk: riskData,
+                duration: baseDuration
             };
         }
     }
@@ -162,17 +166,54 @@ async function getRoute(startLat, startLon, endLat, endLon){
             weight: 6
         }).addTo(map);
 
-        showRiskPanel(bestRoute.risk);
+        showRiskPanel(bestRoute.risk, bestRoute.duration);
 
         console.log("Safest route selected");
     }
 }
+function adjustDuration(baseSeconds, riskScore) {
+
+    let factor = 1;
+
+    if (riskScore >= 10) {
+        factor = 1.5; // very slow
+    } else if (riskScore >= 5) {
+        factor = 1.25; // moderate delay
+    } else {
+        factor = 1.1; // slight delay
+    }
+
+    return baseSeconds * factor;
+}
 // Display risk results in UI panel
-function showRiskPanel(data) {
+function showRiskPanel(data, durationSeconds) {
+
     const panel = document.getElementById("riskPanel");
+
+    const adjustedSeconds = adjustDuration(durationSeconds, data.avg_score);
+
+    const minutes = Math.round(adjustedSeconds / 60);
+
+    const arrival = new Date(Date.now() + adjustedSeconds * 1000);
+    const arrivalTime = arrival.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const terrainWarning = data.reasons.find(r =>
+        r.includes("limited terrain data")
+    );
+
     panel.innerHTML = `
     <h3>Route Risk: ${data.risk_level}</h3>
+
     <p><strong>Score:</strong> ${data.avg_score}</p>
+
+    ${terrainWarning ? `<p style="color:red;"><strong>⚠ ${terrainWarning}</strong></p>` : ""}
+
+    <p><strong>Estimated Travel Time:</strong> ${minutes} mins</p>
+    <p><strong>Estimated Arrival:</strong> ${arrivalTime}</p>
+
     <p>${data.reasons.find(r => r.includes("temperature"))}</p>
     <p>${data.reasons.find(r => r.includes("weather"))}</p>
     <p>${data.reasons.find(r => r.includes("wind"))}</p>
