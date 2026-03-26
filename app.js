@@ -95,7 +95,7 @@ async function sendQuery(){
 // Get route from OSRM and compute route risk
 async function getRoute(startLat, startLon, endLat, endLon){
 
-    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson&alternatives=true`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson&alternatives=3`;
 
     const response = await fetch(url);
     const data = await response.json();
