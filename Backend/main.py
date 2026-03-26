@@ -340,6 +340,9 @@ def route_risk(req: RouteRequest):
     if not req.route:
         return {"error": "No route points"}
 
+    missing_dem_points = 0
+    total_points = len(req.route)
+
     # =========================
     # GLOBAL factors 
     # =========================
@@ -393,6 +396,9 @@ def route_risk(req: RouteRequest):
 
         lon, lat = point
 
+        if not is_within_dem(lat, lon):
+            missing_dem_points += 1
+
         slope = get_slope(lat, lon)
         condition = get_road_condition(lat, lon)
 
@@ -445,6 +451,10 @@ def route_risk(req: RouteRequest):
     # =========================
     reasons = global_reasons.copy()
     reasons.append(slope_summary)
+    coverage = 1 - (missing_dem_points / total_points)
+
+    if coverage < 0.8:  # threshold (you can tweak)
+        reasons.append("limited terrain data on this route")
 
     return {
         "avg_score": total_score,
@@ -462,3 +472,10 @@ def dem_bounds():
         "min_lon": bounds.left,
         "max_lon": bounds.right
     }
+def is_within_dem(lat, lon):
+    bounds = dem.bounds
+
+    return (
+        bounds.bottom <= lat <= bounds.top and
+        bounds.left <= lon <= bounds.right
+    )
