@@ -358,6 +358,11 @@ function showRiskPanel(data, durationSeconds) {
 
     <p><strong>Score:</strong> ${data.avg_score}</p>
 
+    <p style="margin-top:10px; padding:10px; background:#2a2a2a; border-radius:8px;">
+        <strong>AI Explanation:</strong><br>
+        ${data.ai_explanation}
+    </p>
+
     ${terrainWarning ? `<p style="color:red;"><strong>⚠ ${terrainWarning}</strong></p>` : ""}
 
     <p><strong>Estimated Travel Time:</strong> ${minutes} mins</p>

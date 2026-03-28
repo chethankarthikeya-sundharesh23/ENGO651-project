@@ -191,6 +191,56 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# -----------------------------
+# Gemini explanation function
+# -----------------------------
+def generate_ai_explanation(risk_level, reasons):
+
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    prompt = f"""
+    Create one short driving-risk explanation under 50 words.
+
+    Risk level: {risk_level}
+    Reasons: {', '.join(reasons)}
+
+    Requirements:
+    - Maximum 50 words
+    - Mention the most important reasons
+    - Sound natural and helpful
+    - Return only the explanation sentence
+    """
+
+    gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(
+            gemini_url,
+            params={"key": api_key},
+            json=payload
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            return result["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+        else:
+            print("Gemini explanation error:", response.text)
+
+    except Exception as e:
+        print("AI explanation error:", e)
+
+    return f"{risk_level} risk because of current weather and road conditions."
 
 # Request format from frontend
 class Query(BaseModel):
@@ -455,11 +505,12 @@ def route_risk(req: RouteRequest):
 
     if coverage < 0.8:  # threshold (you can tweak)
         reasons.append("limited terrain data on this route")
-
+    ai_explanation = generate_ai_explanation(final_level, reasons)
     return {
         "avg_score": total_score,
         "risk_level": final_level,
-        "reasons": reasons
+        "reasons": reasons,
+        "ai_explanation": ai_explanation
     }
 @app.get("/dem-bounds")
 def dem_bounds():
