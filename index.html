@@ -2,34 +2,55 @@
 <html>
 
 <head>
+    <title>Winter Road Risk Mapper</title>
 
-<title>Winter Road Risk Mapper</title>
-<!--for mobile sizing-->
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
-<link rel="stylesheet" href="style.css">
-
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+    <!-- Put this ABOVE mainContent -->
+    <div id="loginBox">
 
-<h2>Winter Road Risk mapper</h2>
-<div id="riskPanel"></div>
-<div id="controls">
+        <h2 id="formTitle">Login</h2>
 
-<input id="queryInput"
-placeholder="Ask something like: Take me to the airport">
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
 
-<button onclick="sendQuery()">Ask</button>
+        <button onclick="login()">Login</button>
 
-</div>
+        <p id="toggleText">
+            Don't have an account?
+            <a href="#" onclick="toggleMode()">Register</a>
+        </p>
 
-<div id="map"></div>
+    </div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="app.js"></script>
+    <!-- Main content hidden until correct password -->
+    <div id="mainContent" style="display:none;">
+
+        <h2>Winter Road Risk Mapper</h2>
+
+        <div id="riskPanel"></div>
+
+        <div id="controls">
+            <input
+                id="queryInput"
+                placeholder="Ask something like: Take me to the airport"
+            >
+
+            <button onclick="sendQuery()">Ask</button>
+        </div>
+
+        <div id="map"></div>
+
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="app.js"></script>
 
 </body>
+
 </html>

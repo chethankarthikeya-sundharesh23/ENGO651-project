@@ -1,3 +1,63 @@
+let isRegisterMode = false;
+
+function toggleMode() {
+
+    isRegisterMode = !isRegisterMode;
+
+    document.getElementById("formTitle").innerText =
+        isRegisterMode ? "Register" : "Login";
+
+    document.querySelector("#loginBox button").innerText =
+        isRegisterMode ? "Register" : "Login";
+
+    document.getElementById("toggleText").innerHTML =
+        isRegisterMode
+        ? `Already have an account? <a href="#" onclick="toggleMode()">Login</a>`
+        : `Don't have an account? <a href="#" onclick="toggleMode()">Register</a>`;
+}
+
+function login() {
+
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    if (!username || !password) {
+        alert("Please enter username and password");
+        return;
+    }
+
+    // get saved users
+    let users = JSON.parse(localStorage.getItem("users")) || {};
+
+    if (isRegisterMode) {
+
+        if (users[username]) {
+            alert("Username already exists");
+            return;
+        }
+
+        users[username] = password;
+        localStorage.setItem("users", JSON.stringify(users));
+
+        alert("Registration successful! Please log in.");
+        toggleMode();
+
+        document.getElementById("password").value = "";
+        return;
+    }
+
+    // login mode
+    if (users[username] && users[username] === password) {
+
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("mainContent").style.display = "block";
+
+    setTimeout(() => {
+        map.invalidateSize();
+    }, 100);
+    }
+}
+
 // Store user location globally
 var userLat, userLon;
 // Initialize map centered on Calgary
