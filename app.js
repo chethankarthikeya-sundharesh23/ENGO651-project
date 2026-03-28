@@ -109,15 +109,7 @@ if (navigator.geolocation) {
 
         map.setView([userLat, userLon], 14);
 
-    const userIcon = L.icon({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [0, -41]
-    });
-
-    L.marker([userLat, userLon], { icon: userIcon })
+    L.marker([userLat, userLon])
         .addTo(map)
         .bindPopup("You are here")
         .openPopup();
@@ -376,6 +368,7 @@ function showRiskPanel(data, durationSeconds) {
 
     <p>${data.reasons.find(r => r.includes("temperature"))}</p>
     <p>${data.reasons.find(r => r.includes("weather"))}</p>
+    <p>${data.reasons.find(r => r.includes("road condition"))}</p>
     <p>${data.reasons.find(r => r.includes("wind"))}</p>
     <p>${data.reasons.find(r => r.includes("road slope"))}</p>
     `;

@@ -441,7 +441,7 @@ def route_risk(req: RouteRequest):
     steep_count = 0
     moderate_count = 0
     flat_count = 0
-
+    road_conditions = []
     for point in req.route:
 
         lon, lat = point
@@ -451,7 +451,8 @@ def route_risk(req: RouteRequest):
 
         slope = get_slope(lat, lon)
         condition = get_road_condition(lat, lon)
-
+        if condition not in ["Clear Road", "No Data"] and condition not in road_conditions:
+            road_conditions.append(condition)
         # slope classification
         if slope > 0.15:
             local_score += 2
@@ -500,6 +501,10 @@ def route_risk(req: RouteRequest):
     #  Final reasons
     # =========================
     reasons = global_reasons.copy()
+    if road_conditions:
+        reasons.append(f"road condition: {road_conditions[0]}")
+    else:
+        reasons.append("road condition: Clear Road")
     reasons.append(slope_summary)
     coverage = 1 - (missing_dem_points / total_points)
 
