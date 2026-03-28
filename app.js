@@ -109,13 +109,19 @@ if (navigator.geolocation) {
 
         map.setView([userLat, userLon], 14);
 
-        L.marker([userLat, userLon])
+    const userIcon = L.icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [0, -41]
+    });
+
+    L.marker([userLat, userLon], { icon: userIcon })
         .addTo(map)
         .bindPopup("You are here")
         .openPopup();
-
-    });
-
+        });
 }
 
 // Send user query to backend 
