@@ -1,9 +1,20 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import json
+from shapely.geometry import Point, LineString
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 import os
 import rasterio
+
+with open("Calgey_Traffic_Incidents_20260310.geojson", "r", encoding="utf-8") as f:
+    incidents_data = json.load(f)
+
+incident_points = []
+
+for feature in incidents_data["features"]:
+    lon, lat = feature["geometry"]["coordinates"]
+    incident_points.append(Point(lon, lat))
 
 dem = rasterio.open("dem.tif")
 app = FastAPI()
@@ -370,20 +381,12 @@ def ai_query(q: Query):
     "reasons": reasons
     }
 
-class RouteRequest(BaseModel):
+class RouteRiskRequest(BaseModel):
     route: list
-
-
-class RouteRequest(BaseModel):
-    route: list
-
-
-class RouteRequest(BaseModel):
-    route: list
-
+    risk_score: float | None = None
 
 @app.post("/route-risk")
-def route_risk(req: RouteRequest):
+def route_risk(req: RouteRiskRequest):
 
     if not req.route:
         return {"error": "No route points"}
@@ -471,6 +474,30 @@ def route_risk(req: RouteRequest):
         elif "closed" in cond:
             local_score += 3
 
+    # historical accident density along route
+    incident_count = count_incidents_near_route(req.route, threshold=0.0001)
+    route_length_km = calculate_route_length_km(req.route)
+    if route_length_km > 0:
+        accidents_per_km = incident_count / route_length_km
+    else:
+        accidents_per_km = 0
+
+    if accidents_per_km >= 50:
+        local_score += 2
+        accident_reason = (
+            f"historical accident density: {accidents_per_km:.1f} accidents/km (high)"
+        )
+    elif accidents_per_km >= 30:
+        local_score += 1
+        accident_reason = (
+            f"historical accident density: {accidents_per_km:.1f} accidents/km (moderate)"
+        )
+    else:
+        accident_reason = (
+            f"historical accident density: {accidents_per_km:.1f} accidents/km (low)"
+        )
+        
+
     # =========================
     # Combine scores
     # =========================
@@ -504,17 +531,22 @@ def route_risk(req: RouteRequest):
     else:
         reasons.append("road condition: Clear Road")
     reasons.append(slope_summary)
+    reasons.append(accident_reason)
     coverage = 1 - (missing_dem_points / total_points)
 
     if coverage < 0.8:  # threshold (you can tweak)
         reasons.append("limited terrain data on this route")
     ai_explanation = generate_ai_explanation(final_level, reasons)
+    incident_count = count_incidents_near_route(req.route)
     return {
         "avg_score": total_score,
         "risk_level": final_level,
         "reasons": reasons,
-        "ai_explanation": ai_explanation
+        "ai_explanation": ai_explanation,
+        "incident_count": incident_count,
+        "accidents_per_km": round(accidents_per_km, 2)
     }
+    
 @app.get("/dem-bounds")
 def dem_bounds():
 
@@ -579,3 +611,44 @@ def osrm_route(q: RouteQuery):
     except Exception as e:
         print("OSRM exception:", e)
         return {"routes": []}
+
+
+def calculate_route_length_km(route_coords):
+    total_km = 0
+
+    for i in range(1, len(route_coords)):
+        lon1, lat1 = route_coords[i - 1]
+        lon2, lat2 = route_coords[i]
+
+        R = 6371
+
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+
+        a = (
+            math.sin(dlat / 2) ** 2
+            + math.cos(math.radians(lat1))
+            * math.cos(math.radians(lat2))
+            * math.sin(dlon / 2) ** 2
+        )
+
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        total_km += R * c
+
+    return total_km
+
+
+def count_incidents_near_route(route_coords, threshold=0.0001):
+    """
+    threshold ≈ 10 m in lat/lon degrees
+    """
+
+    line = LineString(route_coords)
+
+    count = 0
+
+    for pt in incident_points:
+        if line.distance(pt) < threshold:
+            count += 1
+
+    return count

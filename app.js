@@ -231,25 +231,37 @@ async function getRoute(startLat, startLon, endLat, endLon){
 
     let routes = data.routes || [];
 
-    if (routes.length < 2) {
+    // Try extra waypoint routes until we have at least 3 unique routes
+    const waypoints = generateWaypoints(startLat, startLon, endLat, endLon);
 
-        const waypoints = generateWaypoints(startLat, startLon, endLat, endLon)
-            .slice(0, 2); // only try 2 waypoint routes
+    for (let wp of waypoints) {
 
-        for (let wp of waypoints) {
+        // stop if we already have enough routes before filtering
+        if (routes.length >= 5) break;
 
-            const wpRoute = await getRouteViaWaypoint(
-                startLat,
-                startLon,
-                wp[0],
-                wp[1],
-                endLat,
-                endLon
-            );
+        const wpRoute = await getRouteViaWaypoint(
+            startLat,
+            startLon,
+            wp[0],
+            wp[1],
+            endLat,
+            endLon
+        );
 
-            if (wpRoute) {
-                routes.push(wpRoute);
+        if (!wpRoute) continue;
+
+        // avoid adding obviously identical routes
+        let duplicate = false;
+
+        for (let r of routes) {
+            if (isSimilarRoute(wpRoute, r)) {
+                duplicate = true;
+                break;
             }
+        }
+
+        if (!duplicate) {
+            routes.push(wpRoute);
         }
     }
 
@@ -259,6 +271,7 @@ async function getRoute(startLat, startLon, endLat, endLon){
     }
 
     console.log("Total routes before filtering:", routes.length);
+
     const uniqueRoutes = [];
 
     for (let r of routes) {
@@ -275,8 +288,17 @@ async function getRoute(startLat, startLon, endLat, endLon){
         if (!duplicate) {
             uniqueRoutes.push(r);
         }
+
+        // stop once we have 3 unique routes
+        if (uniqueRoutes.length >= 3) break;
     }
+
     console.log("Unique routes after filtering:", uniqueRoutes.length);
+
+    if (uniqueRoutes.length < 3) {
+        console.warn("Only", uniqueRoutes.length, "unique routes found");
+    }
+    
     let bestRoute = null;
     let bestRisk = Infinity;
 
@@ -312,13 +334,14 @@ async function getRoute(startLat, startLon, endLat, endLon){
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                route: sampled
+                route: sampled,
+                risk_score: 0
             })
         });
 
         const riskData = await riskResponse.json();
 
-        console.log(`Route ${i} risk:`, riskData);
+        console.log(`Route ${i + 1}: risk=${riskData.avg_score}, incidents=${riskData.incident_count}`);
 
         // find best (LOWEST score)
         const combinedScore = riskData.avg_score * 10 + (baseDuration / 60);
@@ -402,6 +425,7 @@ function showRiskPanel(data, durationSeconds) {
     <p>${data.reasons.find(r => r.includes("road condition"))}</p>
     <p>${data.reasons.find(r => r.includes("wind"))}</p>
     <p>${data.reasons.find(r => r.includes("road slope"))}</p>
+    <p>${data.reasons.find(r => r.includes("historical accident density"))}</p>
     `;
 
     panel.style.display = "block";
