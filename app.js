@@ -111,7 +111,7 @@ if (navigator.geolocation) {
 
     L.marker([userLat, userLon])
         .addTo(map)
-        .bindPopup("You are here")
+        .bindPopup("You are here", {offset: [-50, 0]})
         .openPopup();
         });
 }
