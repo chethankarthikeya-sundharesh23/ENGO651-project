@@ -182,11 +182,9 @@ def calculate_risk(temp, wind, slope, condition, weather_type):
 
     return score, level, reasons
 # Allow frontend access
-origins = ["*"]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["http://127.0.0.1:5500"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -535,3 +533,49 @@ def is_within_dem(lat, lon):
         bounds.bottom <= lat <= bounds.top and
         bounds.left <= lon <= bounds.right
     )
+
+class RouteQuery(BaseModel):
+    startLat: float
+    startLon: float
+    endLat: float
+    endLon: float
+    wpLat: float | None = None
+    wpLon: float | None = None
+
+
+@app.post("/osrm-route")
+def osrm_route(q: RouteQuery):
+
+    # build coordinate string
+    if q.wpLat is not None and q.wpLon is not None:
+        coords = (
+            f"{q.startLon},{q.startLat};"
+            f"{q.wpLon},{q.wpLat};"
+            f"{q.endLon},{q.endLat}"
+        )
+    else:
+        coords = (
+            f"{q.startLon},{q.startLat};"
+            f"{q.endLon},{q.endLat}"
+        )
+
+    # lighter request to reduce 504 timeout
+    url = (
+        f"https://router.project-osrm.org/route/v1/driving/{coords}"
+        f"?overview=full&geometries=geojson&alternatives=true"
+    )
+
+    try:
+        response = requests.get(url, timeout=15)
+
+        print("OSRM status:", response.status_code)
+
+        if response.status_code != 200:
+            print(response.text[:300])
+            return {"routes": []}
+
+        return response.json()
+
+    except Exception as e:
+        print("OSRM exception:", e)
+        return {"routes": []}

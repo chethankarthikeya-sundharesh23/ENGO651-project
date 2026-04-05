@@ -164,17 +164,31 @@ function generateWaypoints(startLat, startLon, endLat, endLon) {
         [midLat, midLon - offset]      // west
     ];
 }
+
 async function getRouteViaWaypoint(startLat, startLon, wpLat, wpLon, endLat, endLon) {
 
-    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${wpLon},${wpLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+    const response = await fetch("http://localhost:8000/osrm-route", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            startLat,
+            startLon,
+            wpLat,
+            wpLon,
+            endLat,
+            endLon
+        })
+    });
 
-    const response = await fetch(url);
     const data = await response.json();
 
     if (!data.routes || data.routes.length === 0) return null;
 
     return data.routes[0];
 }
+
 function isSimilarRoute(routeA, routeB) {
 
     const a = routeA.geometry.coordinates;
@@ -200,33 +214,50 @@ function isSimilarRoute(routeA, routeB) {
 // Get route from OSRM and compute route risk
 async function getRoute(startLat, startLon, endLat, endLon){
 
-    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson&alternatives=3`;
-
-    const response = await fetch(url);
+    const response = await fetch("http://localhost:8000/osrm-route", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            startLat,
+            startLon,
+            endLat,
+            endLon
+        })
+    });
     const data = await response.json();
     console.log("OSRM full response:", data);
 
-    const waypointRoutes = [];
-    const waypoints = generateWaypoints(startLat, startLon, endLat, endLon);
-    for (let wp of waypoints) {
+    let routes = data.routes || [];
 
-        const wpLat = wp[0];
-        const wpLon = wp[1];
+    if (routes.length < 2) {
 
-        const wpRoute = await getRouteViaWaypoint(
-            startLat, startLon,
-            wpLat, wpLon,
-            endLat, endLon
-        );
+        const waypoints = generateWaypoints(startLat, startLon, endLat, endLon)
+            .slice(0, 2); // only try 2 waypoint routes
 
-        if (wpRoute) {
-            waypointRoutes.push(wpRoute);
+        for (let wp of waypoints) {
+
+            const wpRoute = await getRouteViaWaypoint(
+                startLat,
+                startLon,
+                wp[0],
+                wp[1],
+                endLat,
+                endLon
+            );
+
+            if (wpRoute) {
+                routes.push(wpRoute);
+            }
         }
     }
-    const routes = [
-        ...data.routes,
-        ...waypointRoutes
-    ];
+
+    if (routes.length === 0) {
+        alert("Could not get route from OSRM right now. Please try again.");
+        return;
+    }
+
     console.log("Total routes before filtering:", routes.length);
     const uniqueRoutes = [];
 
