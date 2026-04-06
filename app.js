@@ -155,7 +155,7 @@ function generateWaypoints(startLat, startLon, endLat, endLon) {
     const midLat = (startLat + endLat) / 2;
     const midLon = (startLon + endLon) / 2;
 
-    const offset = 0.05; // ~5 km deviation
+    const offset = 0.03; // ~3 km deviation
 
     return [
         [midLat + offset, midLon],     // north deviation
@@ -237,7 +237,7 @@ async function getRoute(startLat, startLon, endLat, endLon){
     for (let wp of waypoints) {
 
         // stop if we already have enough routes before filtering
-        if (routes.length >= 5) break;
+        if (routes.length >= 3) break;
 
         const wpRoute = await getRouteViaWaypoint(
             startLat,
@@ -390,11 +390,9 @@ function adjustDuration(baseSeconds, riskScore) {
 function showRiskPanel(data, durationSeconds) {
 
     const panel = document.getElementById("riskPanel");
-
+    const content = document.getElementById("riskPanelContent");
     const adjustedSeconds = adjustDuration(durationSeconds, data.avg_score);
-
     const minutes = Math.round(adjustedSeconds / 60);
-
     const arrival = new Date(Date.now() + adjustedSeconds * 1000);
     const arrivalTime = arrival.toLocaleTimeString([], {
         hour: '2-digit',
@@ -405,28 +403,48 @@ function showRiskPanel(data, durationSeconds) {
         r.includes("limited terrain data")
     );
 
-    panel.innerHTML = `
-    <h3>Route Risk: ${data.risk_level}</h3>
+    content.innerHTML = `
+    <h3 style="margin-top:0; color:#356dff;">Route Risk: ${data.risk_level}</h3>
 
     <p><strong>Score:</strong> ${data.avg_score}</p>
 
-    <p style="margin-top:10px; padding:10px; background:#2a2a2a; border-radius:8px;">
+    <div style="margin-top:12px; padding:12px; background:#f3f6ff; border-radius:12px; border-left:4px solid #356dff;">
         <strong>AI Explanation:</strong><br>
         ${data.ai_explanation}
-    </p>
+    </div>
 
-    ${terrainWarning ? `<p style="color:red;"><strong>⚠ ${terrainWarning}</strong></p>` : ""}
+    ${terrainWarning ? `<p style="color:#d93025;"><strong>⚠ ${terrainWarning}</strong></p>` : ""}
 
     <p><strong>Estimated Travel Time:</strong> ${minutes} mins</p>
     <p><strong>Estimated Arrival:</strong> ${arrivalTime}</p>
 
-    <p>${data.reasons.find(r => r.includes("temperature"))}</p>
-    <p>${data.reasons.find(r => r.includes("weather"))}</p>
-    <p>${data.reasons.find(r => r.includes("road condition"))}</p>
-    <p>${data.reasons.find(r => r.includes("wind"))}</p>
-    <p>${data.reasons.find(r => r.includes("road slope"))}</p>
-    <p>${data.reasons.find(r => r.includes("historical accident density"))}</p>
+    <p>🌡️ ${data.reasons.find(r => r.includes("temperature"))}</p>
+    <p>☁️ ${data.reasons.find(r => r.includes("weather"))}</p>
+    <p>🛣️ ${data.reasons.find(r => r.includes("road condition"))}</p>
+    <p>💨 ${data.reasons.find(r => r.includes("wind"))}</p>
+    <p>⛰️ ${data.reasons.find(r => r.includes("road slope"))}</p>
+    <p>⚠️ ${data.reasons.find(r => r.includes("historical accident density"))}</p>
     `;
 
+    
     panel.style.display = "block";
+    panel.classList.remove("collapsed");
+    document.getElementById("riskPanelContent").style.display = "block";
+    document.getElementById("toggleRiskPanel").innerText = "−";
+}
+
+function toggleRiskPanel() {
+    const panel = document.getElementById("riskPanel");
+    const content = document.getElementById("riskPanelContent");
+    const button = document.getElementById("toggleRiskPanel");
+
+    panel.classList.toggle("collapsed");
+
+    if (panel.classList.contains("collapsed")) {
+        content.style.display = "none";
+        button.innerText = "+";
+    } else {
+        content.style.display = "block";
+        button.innerText = "−";
+    }
 }

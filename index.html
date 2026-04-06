@@ -33,7 +33,14 @@
 
         <h2>Winter Road Risk Mapper</h2>
 
-        <div id="riskPanel"></div>
+        <div id="riskPanel" style="display:none;">
+            <div id="riskPanelHeader">
+                <span>Route Information</span>
+                <button id="toggleRiskPanel" onclick="toggleRiskPanel()">−</button>
+        </div>
+
+            <div id="riskPanelContent"></div>
+        </div>
 
         <div id="controls">
             <input

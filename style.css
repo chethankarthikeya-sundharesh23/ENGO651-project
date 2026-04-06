@@ -28,23 +28,56 @@ button{
 padding:10px;
 }
 
-#riskPanel {
-    position: absolute;
-    top: 80px;
-    right: 20px;  
+#riskPanel{
+    position:absolute;
+    top:80px;
+    right:20px;
+    width:340px;
+    background:rgba(255,255,255,0.92);
+    backdrop-filter:blur(10px);
+    border-radius:18px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.18);
+    overflow:hidden;
+    z-index:1000;
+    border:1px solid rgba(255,255,255,0.4);
+}
 
-    background: rgba(30, 30, 30, 0.9);
-    color: white;
+#riskPanelHeader{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 18px;
+    background:linear-gradient(135deg,#356dff,#5b8cff);
+    color:white;
+    font-weight:600;
+    font-size:18px;
+}
 
-    padding: 15px 20px;
-    border-radius: 10px;
+#toggleRiskPanel{
+    border:none;
+    background:rgba(255,255,255,0.2);
+    color:white;
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:18px;
+}
 
-    width: 300px;
+#riskPanelContent{
+    padding:18px;
+    color:#222;
+    max-height:70vh;
+    overflow-y:auto;
+    line-height:1.5;
+}
 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    font-size: 14px;
+#riskPanel.minimized #riskPanelContent{
+    display:none;
+}
 
-    z-index: 1000;   
+#riskPanel.minimized{
+    width:220px;
 }
 
 #loginBox{
