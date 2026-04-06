@@ -574,6 +574,9 @@ class RouteQuery(BaseModel):
     wpLat: float | None = None
     wpLon: float | None = None
 
+# True = use local Docker OSRM
+# False = use public online OSRM server
+USE_LOCAL_OSRM = False
 
 @app.post("/osrm-route")
 def osrm_route(q: RouteQuery):
@@ -591,15 +594,22 @@ def osrm_route(q: RouteQuery):
             f"{q.endLon},{q.endLat}"
         )
 
-    # lighter request to reduce 504 timeout
-    url = (
-    f"http://127.0.0.1:5000/route/v1/driving/"
-    f"{coords}"
-    f"?alternatives=true&steps=true&overview=full&geometries=geojson"
-)
+    # local or online OSRM
+    if USE_LOCAL_OSRM:
+        url = (
+            f"http://127.0.0.1:5000/route/v1/driving/"
+            f"{coords}"
+            f"?alternatives=true&steps=true&overview=full&geometries=geojson"
+        )
+    else:
+        url = (
+            f"https://router.project-osrm.org/route/v1/driving/"
+            f"{coords}"
+            f"?alternatives=true&steps=true&overview=full&geometries=geojson"
+        )
 
     try:
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, timeout=15)
 
         print("OSRM status:", response.status_code)
 
