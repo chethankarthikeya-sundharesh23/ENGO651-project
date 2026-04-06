@@ -593,12 +593,13 @@ def osrm_route(q: RouteQuery):
 
     # lighter request to reduce 504 timeout
     url = (
-        f"https://router.project-osrm.org/route/v1/driving/{coords}"
-        f"?overview=full&geometries=geojson&alternatives=true"
-    )
+    f"http://127.0.0.1:5000/route/v1/driving/"
+    f"{coords}"
+    f"?alternatives=true&steps=true&overview=full&geometries=geojson"
+)
 
     try:
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, timeout=30)
 
         print("OSRM status:", response.status_code)
 
