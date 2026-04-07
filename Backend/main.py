@@ -54,27 +54,50 @@ def get_slope(lat, lon):
         print("Slope error:", e)
         return 0
 
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
+print("Loaded Weather API key:", WEATHER_API_KEY)
+
 def get_weather(lat, lon):
-    url = "https://api.open-meteo.com/v1/forecast"
+    url = "https://api.weatherapi.com/v1/current.json"
 
     params = {
-        "latitude": lat,
-        "longitude": lon,
-        "current_weather": True
+        "key": WEATHER_API_KEY,
+        "q": f"{lat},{lon}"
     }
 
-    response = requests.get(url, params=params)
-    data = response.json()
+    try:
+        response = requests.get(url, params=params, timeout=20)
 
-    current = data.get("current_weather")
+        print("WeatherAPI status:", response.status_code)
+        print("WeatherAPI text:", response.text[:200])
 
-    if not current:
-        return 0, 0, 0   # fallback
+        if response.status_code != 200:
+            return 0, 0, 0
 
-    temp = current.get("temperature", 0)
-    wind = current.get("windspeed", 0)
-    weather_code = current.get("weathercode", 0)
-    return temp, wind, weather_code
+        data = response.json()
+
+        current = data.get("current", {})
+
+        temp = current.get("temp_c", 0)
+        wind = current.get("wind_kph", 0)
+
+        condition_text = current.get("condition", {}).get("text", "").lower()
+
+        # convert to your existing weather codes
+        if "snow" in condition_text:
+            weather_code = 71
+        elif "rain" in condition_text:
+            weather_code = 61
+        elif "clear" in condition_text or "sunny" in condition_text:
+            weather_code = 0
+        else:
+            weather_code = 3
+
+        return temp, wind, weather_code
+
+    except Exception as e:
+        print("WeatherAPI error:", e)
+        return 0, 0, 0
 
 def get_road_condition(lat, lon):
 
