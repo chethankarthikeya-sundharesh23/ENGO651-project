@@ -119,3 +119,13 @@ padding:10px;
     margin-top: 12px;
     font-size: 14px;
 }
+/* Project title style */
+#projectTitle{
+    text-align: center;
+    font-size: 22px;
+    margin-top: 0;
+    margin-bottom: 18px;
+    color: #356dff;
+    line-height: 1.3;
+}
+
