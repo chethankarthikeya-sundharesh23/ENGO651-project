@@ -2,59 +2,62 @@
 <html>
 
 <head>
+    <!-- Main page title shown in browser tab -->
     <title>Winter Road Risk Mapper</title>
-
+    <!-- Responsive layout for mobile and desktop devices -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    <!-- Leaflet map library stylesheet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <!-- Custom CSS for page layout, login box, and risk panel -->
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <!-- Put this ABOVE mainContent -->
+    <!-- Login and registration panel shown before entering the app -->
     <div id="loginBox">
 
         <h2 id="formTitle">Login</h2>
-
+        <!-- Username and password inputs -->
         <input type="text" id="username" placeholder="Username">
         <input type="password" id="password" placeholder="Password">
-
+        <!-- Button used for both login and registration -->
         <button onclick="login()">Login</button>
-
+        <!-- Link to switch between login mode and register mode -->
         <p id="toggleText">
             Don't have an account?
             <a href="#" onclick="toggleMode()">Register</a>
         </p>
-
     </div>
 
-    <!-- Main content hidden until correct password -->
+    <!-- Main application content, hidden until user logs in -->
     <div id="mainContent" style="display:none;">
 
         <h2>Winter Road Risk Mapper</h2>
-
+        <!-- Floating panel that displays route risk information -->
         <div id="riskPanel" style="display:none;">
+            <!-- Header section of the risk panel with collapse button -->
             <div id="riskPanelHeader">
                 <span>Route Information</span>
                 <button id="toggleRiskPanel" onclick="toggleRiskPanel()">−</button>
         </div>
-
+            <!-- Container where JavaScript inserts route risk details -->
             <div id="riskPanelContent"></div>
         </div>
-
+        <!-- Search bar where user enters a destination request -->
         <div id="controls">
+            <!-- Natural language destination input -->
             <input
                 id="queryInput"
                 placeholder="Ask something like: Take me to the airport"
             >
-
+            <!-- Sends the query to the backend and begins routing -->
             <button onclick="sendQuery()">Ask</button>
         </div>
-
+        <!-- Leaflet map container -->
         <div id="map"></div>
 
     </div>
-
+    <!-- Leaflet JavaScript library -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="app.js"></script>
 

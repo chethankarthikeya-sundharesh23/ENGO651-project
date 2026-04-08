@@ -1,5 +1,8 @@
 let isRegisterMode = false;
-
+// --------------------------------------------------
+// Login / Registration Mode Toggle
+// Switches between login and register interface
+// --------------------------------------------------
 function toggleMode() {
 
     isRegisterMode = !isRegisterMode;
@@ -15,7 +18,10 @@ function toggleMode() {
         ? `Already have an account? <a href="#" onclick="toggleMode()">Login</a>`
         : `Don't have an account? <a href="#" onclick="toggleMode()">Register</a>`;
 }
-
+// --------------------------------------------------
+// Handle user login or account registration
+// User credentials are stored locally in browser storage
+// --------------------------------------------------
 function login() {
 
     const username = document.getElementById("username").value;
@@ -71,7 +77,10 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let demLayer;
 let layerControl;
 
-// fetch dem bounds
+// --------------------------------------------------
+// Request DEM coverage bounds from backend
+// and display them as a rectangle on the map
+// --------------------------------------------------
 async function loadDEMLayer() {
 
     const response = await fetch("http://localhost:8000/dem-bounds");
@@ -116,7 +125,10 @@ if (navigator.geolocation) {
         });
 }
 
-// Send user query to backend 
+// --------------------------------------------------
+// Send the natural language query to the backend
+// Backend returns destination coordinates and risk info
+// --------------------------------------------------
 async function sendQuery(){
 
     const query = document.getElementById("queryInput").value;
@@ -150,6 +162,11 @@ async function sendQuery(){
     // Call routing function
     getRoute(userLat,userLon,lat,lon);
 }
+
+// --------------------------------------------------
+// Generate several waypoint candidates around the midpoint
+// Used to force OSRM to create alternative routes
+// --------------------------------------------------
 function generateWaypoints(startLat, startLon, endLat, endLon) {
 
     const midLat = (startLat + endLat) / 2;
@@ -164,7 +181,9 @@ function generateWaypoints(startLat, startLon, endLat, endLon) {
         [midLat, midLon - offset]      // west
     ];
 }
-
+// --------------------------------------------------
+// Request a route that passes through a waypoint
+// --------------------------------------------------
 async function getRouteViaWaypoint(startLat, startLon, wpLat, wpLon, endLat, endLon) {
 
     const response = await fetch("http://localhost:8000/osrm-route", {
@@ -188,7 +207,10 @@ async function getRouteViaWaypoint(startLat, startLon, wpLat, wpLon, endLat, end
 
     return data.routes[0];
 }
-
+// --------------------------------------------------
+// Compare two routes to determine if they are similar
+// Prevents duplicate alternative routes from being shown
+// --------------------------------------------------
 function isSimilarRoute(routeA, routeB) {
 
     const a = routeA.geometry.coordinates;
@@ -211,7 +233,13 @@ function isSimilarRoute(routeA, routeB) {
 
     return (similarCount / (minLen / 10)) > 0.7;
 }
-// Get route from OSRM and compute route risk
+// --------------------------------------------------
+// Main routing function
+// 1. Request routes from backend
+// 2. Generate extra alternatives if needed
+// 3. Calculate risk for each route
+// 4. Select and display the safest route
+// --------------------------------------------------
 async function getRoute(startLat, startLon, endLat, endLon){
 
     const response = await fetch("http://localhost:8000/osrm-route", {
@@ -323,7 +351,7 @@ async function getRoute(startLat, startLon, endLat, endLon){
             opacity: 0.6
         }).addTo(map);
 
-        // sample points
+        // Sample every 20th coordinate along the route
         const coords = route.coordinates;
         const sampled = coords.filter((_, idx) => idx % 20 === 0);
 
@@ -372,6 +400,10 @@ async function getRoute(startLat, startLon, endLat, endLon){
         console.log("Safest route selected");
     }
 }
+// --------------------------------------------------
+// Adjust estimated travel time based on risk score
+// Higher-risk routes are assumed to take longer
+// --------------------------------------------------
 function adjustDuration(baseSeconds, riskScore) {
 
     let factor = 1;
@@ -386,7 +418,11 @@ function adjustDuration(baseSeconds, riskScore) {
 
     return baseSeconds * factor;
 }
-// Display risk results in UI panel
+// --------------------------------------------------
+// Display route risk information in the side panel
+// Includes score, AI explanation, weather, slope,
+// road conditions, and estimated arrival time
+// --------------------------------------------------
 function showRiskPanel(data, durationSeconds) {
 
     const panel = document.getElementById("riskPanel");
@@ -432,7 +468,9 @@ function showRiskPanel(data, durationSeconds) {
     document.getElementById("riskPanelContent").style.display = "block";
     document.getElementById("toggleRiskPanel").innerText = "−";
 }
-
+// --------------------------------------------------
+// Collapse or expand the risk information panel
+// --------------------------------------------------
 function toggleRiskPanel() {
     const panel = document.getElementById("riskPanel");
     const content = document.getElementById("riskPanelContent");

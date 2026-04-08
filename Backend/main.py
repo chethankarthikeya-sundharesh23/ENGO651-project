@@ -3,28 +3,39 @@ from pydantic import BaseModel
 import json
 from shapely.geometry import Point, LineString
 from fastapi.middleware.cors import CORSMiddleware
+import math
 import requests
 import os
 import rasterio
-
+# --------------------------------------------------
+# Load required libraries for backend routing system
+# FastAPI = backend server
+# rasterio = DEM elevation access
+# shapely = spatial geometry operations
+# --------------------------------------------------
 with open("Calgey_Traffic_Incidents_20260310.geojson", "r", encoding="utf-8") as f:
     incidents_data = json.load(f)
-
 incident_points = []
-
 for feature in incidents_data["features"]:
     lon, lat = feature["geometry"]["coordinates"]
     incident_points.append(Point(lon, lat))
-
+# --------------------------------------------------
+# Open DEM raster used for elevation and slope analysis
+# --------------------------------------------------
 dem = rasterio.open("dem.tif")
 app = FastAPI()
+# --------------------------------------------------
+# Return elevation value from DEM at a given latitude/longitude
+# --------------------------------------------------
 def get_elevation(lat, lon):
     row, col = dem.index(lon, lat)
     elevation = dem.read(1)[row, col]
     return float(elevation)
-
-import math
-
+# --------------------------------------------------
+# Calculate terrain slope from the DEM
+# Uses neighboring raster cells to estimate x/y slope
+# Slope = sqrt(dx² + dy²)
+# --------------------------------------------------
 def get_slope(lat, lon):
 
     row, col = dem.index(lon, lat)
@@ -53,10 +64,18 @@ def get_slope(lat, lon):
     except Exception as e:
         print("Slope error:", e)
         return 0
-
+# --------------------------------------------------
+# Load WeatherAPI key from environment variables
+# --------------------------------------------------
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 print("Loaded Weather API key:", WEATHER_API_KEY)
-
+# --------------------------------------------------
+# Request current weather conditions from WeatherAPI
+# Returns:
+#   temperature (°C)
+#   wind speed (km/h)
+#   simplified weather code
+# --------------------------------------------------
 def get_weather(lat, lon):
     url = "https://api.weatherapi.com/v1/current.json"
 
@@ -98,7 +117,10 @@ def get_weather(lat, lon):
     except Exception as e:
         print("WeatherAPI error:", e)
         return 0, 0, 0
-
+# --------------------------------------------------
+# Request nearby road condition information from Alberta 511
+# Looks for incidents within 5 km of the input location
+# --------------------------------------------------
 def get_road_condition(lat, lon):
 
     url = "https://services.arcgis.com/ArcGIS/rest/services/Traffic_Events/FeatureServer/0/query"
@@ -134,7 +156,10 @@ def get_road_condition(lat, lon):
     except Exception as e:
         print("511 ERROR:", e)
         return "No Data"
-
+# --------------------------------------------------
+# Convert numeric weather codes into simple labels
+# Example: Snow, Rain, Clear, Cloudy
+# --------------------------------------------------
 def interpret_weather(code):
 
     if code is None:
@@ -148,7 +173,16 @@ def interpret_weather(code):
         return "Clear"
     else:
         return "Cloudy"
-
+# --------------------------------------------------
+# Calculate risk score for a single point
+# Factors:
+#   - temperature
+#   - weather type
+#   - wind
+#   - slope
+#   - road condition
+# Returns a numeric score, risk level, and explanation list
+# --------------------------------------------------
 def calculate_risk(temp, wind, slope, condition, weather_type):
 
     score = 0
@@ -215,7 +249,10 @@ def calculate_risk(temp, wind, slope, condition, weather_type):
         level = "LOW"
 
     return score, level, reasons
-# Allow frontend access
+# --------------------------------------------------
+# Enable frontend requests from localhost
+# Required so the JavaScript frontend can access the API
+# --------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:5500"],
@@ -223,9 +260,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# -----------------------------
-# Gemini explanation function
-# -----------------------------
+# --------------------------------------------------
+# Generate a short AI explanation for the selected route
+# Uses Gemini to summarize the most important risk factors
+# --------------------------------------------------
 def generate_ai_explanation(risk_level, reasons):
 
     api_key = os.getenv("GEMINI_API_KEY")
@@ -278,10 +316,13 @@ def generate_ai_explanation(risk_level, reasons):
 class Query(BaseModel):
     query: str
 
-
-# -----------------------------
-# Gemini AI function
-# -----------------------------
+# --------------------------------------------------
+# Use Gemini to extract a destination from natural language
+# Example:
+#   "Take me to the airport"
+# becomes
+#   "Calgary International Airport"
+# --------------------------------------------------
 def extract_destination(query):
 
     api_key = os.getenv("GEMINI_API_KEY")
@@ -337,9 +378,12 @@ def extract_destination(query):
         return query
 
 
-# -----------------------------
-# AI Navigation Endpoint
-# -----------------------------
+# --------------------------------------------------
+# Main endpoint for destination search
+# 1. Extract destination from user query
+# 2. Geocode destination with OpenStreetMap
+# 3. Compute initial weather / slope / road risk
+# --------------------------------------------------
 @app.post("/ai-query")
 def ai_query(q: Query):
 
@@ -408,6 +452,14 @@ class RouteRiskRequest(BaseModel):
     route: list
     risk_score: float | None = None
 
+# --------------------------------------------------
+# Main route risk endpoint
+# Calculates:
+#   - global weather risk
+#   - local slope and road condition risk
+#   - historical accident density
+#   - final route risk level and explanation
+# --------------------------------------------------
 @app.post("/route-risk")
 def route_risk(req: RouteRiskRequest):
 
@@ -461,7 +513,12 @@ def route_risk(req: RouteRiskRequest):
     # =========================
     local_score = 0
 
-    # slope counters
+    # --------------------------------------------------
+    # Count how many sampled route points fall into each slope class
+    # flat: slope <= 0.05
+    # moderate: 0.05 - 0.15
+    # steep: > 0.15
+    # --------------------------------------------------
     steep_count = 0
     moderate_count = 0
     flat_count = 0
@@ -497,7 +554,10 @@ def route_risk(req: RouteRiskRequest):
         elif "closed" in cond:
             local_score += 3
 
-    # historical accident density along route
+    # --------------------------------------------------
+    # Compute historical accident density along the route
+    # Accident density = incidents / route length
+    # --------------------------------------------------
     incident_count = count_incidents_near_route(req.route, threshold=0.0001)
     route_length_km = calculate_route_length_km(req.route)
     if route_length_km > 0:
@@ -536,9 +596,11 @@ def route_risk(req: RouteRiskRequest):
     else:
         final_level = "LOW"
 
-    # =========================
-    # Clean slope summary
-    # =========================
+    # --------------------------------------------------
+    # Create a readable summary of terrain conditions
+    # Example:
+    #   road slope: 1 steep, 2 moderate, 5 flat
+    # --------------------------------------------------
     slope_summary = f"road slope: {moderate_count} moderate, {flat_count} flat"
 
     # include steep if exists
@@ -569,7 +631,10 @@ def route_risk(req: RouteRiskRequest):
         "incident_count": incident_count,
         "accidents_per_km": round(accidents_per_km, 2)
     }
-    
+# --------------------------------------------------
+# Return the geographic bounds of the DEM raster
+# Used by the frontend to draw the DEM coverage area
+# --------------------------------------------------
 @app.get("/dem-bounds")
 def dem_bounds():
 
@@ -581,6 +646,9 @@ def dem_bounds():
         "min_lon": bounds.left,
         "max_lon": bounds.right
     }
+# --------------------------------------------------
+# Check whether a point falls inside the DEM coverage area
+# --------------------------------------------------
 def is_within_dem(lat, lon):
     bounds = dem.bounds
 
@@ -588,7 +656,9 @@ def is_within_dem(lat, lon):
         bounds.bottom <= lat <= bounds.top and
         bounds.left <= lon <= bounds.right
     )
-
+# --------------------------------------------------
+# Data model for requesting a route from OSRM
+# --------------------------------------------------
 class RouteQuery(BaseModel):
     startLat: float
     startLon: float
@@ -596,15 +666,16 @@ class RouteQuery(BaseModel):
     endLon: float
     wpLat: float | None = None
     wpLon: float | None = None
-
-# True = use local Docker OSRM
-# False = use public online OSRM server
-USE_LOCAL_OSRM = False
-
+# --------------------------------------------------
+# Request route geometry from OSRM
+# Returns one or more possible routes between start and end
+# --------------------------------------------------
 @app.post("/osrm-route")
 def osrm_route(q: RouteQuery):
 
-    # build coordinate string
+    # Build coordinate string for OSRM request
+    # If a waypoint exists, route goes:
+    # start -> waypoint -> destination
     if q.wpLat is not None and q.wpLon is not None:
         coords = (
             f"{q.startLon},{q.startLat};"
@@ -617,19 +688,12 @@ def osrm_route(q: RouteQuery):
             f"{q.endLon},{q.endLat}"
         )
 
-    # local or online OSRM
-    if USE_LOCAL_OSRM:
-        url = (
-            f"http://127.0.0.1:5000/route/v1/driving/"
-            f"{coords}"
-            f"?alternatives=true&steps=true&overview=full&geometries=geojson"
-        )
-    else:
-        url = (
-            f"https://router.project-osrm.org/route/v1/driving/"
-            f"{coords}"
-            f"?alternatives=true&steps=true&overview=full&geometries=geojson"
-        )
+    # Use public online OSRM server
+    url = (
+        f"https://router.project-osrm.org/route/v1/driving/"
+        f"{coords}"
+        f"?alternatives=true&steps=true&overview=full&geometries=geojson"
+    )
 
     try:
         response = requests.get(url, timeout=15)
@@ -645,8 +709,10 @@ def osrm_route(q: RouteQuery):
     except Exception as e:
         print("OSRM exception:", e)
         return {"routes": []}
-
-
+# --------------------------------------------------
+# Calculate total route length using the Haversine formula
+# Returns route length in kilometers
+# --------------------------------------------------
 def calculate_route_length_km(route_coords):
     total_km = 0
 
@@ -670,8 +736,10 @@ def calculate_route_length_km(route_coords):
         total_km += R * c
 
     return total_km
-
-
+# --------------------------------------------------
+# Count how many historical incident points lie close to the route
+# threshold = maximum distance from route line to incident point
+# --------------------------------------------------
 def count_incidents_near_route(route_coords, threshold=0.0001):
     """
     threshold ≈ 10 m in lat/lon degrees

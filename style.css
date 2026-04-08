@@ -1,33 +1,37 @@
+/* --------------------------------------------------
+   Global page styling
+-------------------------------------------------- */
 body{
 margin:0;
 font-family: Arial, sans-serif;
 }
-
+/* Center the main page title */
 h2{
 text-align:center;
 padding:10px;
 }
-
+/* Map fills most of the browser window */
 #map{
 height:90vh;
 width:100%;
+/* Layout for the search bar and Ask button */
 }
 #controls{
 display:flex;
 gap:10px;
 padding:10px;
 }
-
+/* Style for the destination text input */
 #queryInput{
 flex:1;
 padding:10px;
 font-size:16px;
 }
-
+/* General button appearance */
 button{
 padding:10px;
 }
-
+/* Floating route information panel shown on the map */
 #riskPanel{
     position:absolute;
     top:80px;
@@ -41,7 +45,7 @@ padding:10px;
     z-index:1000;
     border:1px solid rgba(255,255,255,0.4);
 }
-
+/* Blue header section at the top of the risk panel */
 #riskPanelHeader{
     display:flex;
     justify-content:space-between;
@@ -52,7 +56,7 @@ padding:10px;
     font-weight:600;
     font-size:18px;
 }
-
+/* Small round button used to collapse the risk panel */
 #toggleRiskPanel{
     border:none;
     background:rgba(255,255,255,0.2);
@@ -63,7 +67,7 @@ padding:10px;
     cursor:pointer;
     font-size:18px;
 }
-
+/* Scrollable content area inside the risk panel */
 #riskPanelContent{
     padding:18px;
     color:#222;
@@ -71,7 +75,7 @@ padding:10px;
     overflow-y:auto;
     line-height:1.5;
 }
-
+/* Hide the content when the panel is minimized */
 #riskPanel.minimized #riskPanelContent{
     display:none;
 }
@@ -79,7 +83,7 @@ padding:10px;
 #riskPanel.minimized{
     width:220px;
 }
-
+/* Login box shown before accessing the map */
 #loginBox{
     position: absolute;
     top: 80px;
@@ -92,24 +96,24 @@ padding:10px;
     z-index: 2000;
     width: 300px;
 }
-
+/* Login title styling */
 #loginBox h2{
     margin-top: 0;
     text-align: center;
 }
-
+/* Input fields inside the login box */
 #loginBox input{
     width: 100%;
     padding: 10px;
     margin-bottom: 12px;
     box-sizing: border-box;
 }
-
+/* Login button fills the width of the login box */
 #loginBox button{
     width: 100%;
     padding: 10px;
 }
-
+/* Text below login button for switching to registration */
 #toggleText{
     text-align: center;
     margin-top: 12px;
