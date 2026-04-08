@@ -1,41 +1,149 @@
-# AI-Assisted Winter Road Risk Mapper (Calgary)
+# Winter Road Risk Mapper
 
-## Project Description
+An AI-powered web mapping application that recommends safer winter driving routes in Calgary by combining weather, terrain slope, road conditions, and historical accident data. The system generates several possible routes, evaluates their risk, and highlights the safest option for the user.
 
-This project aims to develop a web-based geospatial application that helps users plan safer travel routes during winter conditions in Calgary. The system integrates weather information, road conditions, and spatial risk analysis to identify potentially hazardous road segments and suggest safer routes.
+## Project Structure
 
-Users interact with the system through a simple interface where they can ask location-based questions such as finding nearby places, estimating travel time, or planning trips to specific destinations. The application analyzes the request, determines the origin and destination, evaluates winter-related risks along possible routes, and recommends both the fastest and the safest route.
+```text
+ENGO651-project/
+│
+├── index.html
+├── style.css
+├── app.js
+├── README.md
+├── .gitignore
+├── .gitattributes
+│
+└── Backend/
+    ├── main.py
+    ├── requirements.txt
+    ├── dem.tif
+    ├── Calgey_Traffic_Incidents_20260310.geojson
+    └── __pycache__/
+```
 
-## Project Objectives
+## Clone the Repository
 
-The main objectives of this project are:
+```bash
+git clone <your-github-repository-url>
+cd ENGO651-project
+```
 
-* Build an interactive map-based web application for route planning.
-* Integrate weather and road condition data to assess winter travel risks.
-* Develop a hazard scoring system for road segments based on winter conditions.
-* Provide route recommendations that balance travel time and safety.
-* Allow users to interact with the system using natural language queries.
-* Visualize routes, hazard areas, and travel information on an interactive map.
+## Install Dependencies
 
-## Expected System Capabilities
+```bash
+cd Backend
+pip install -r requirements.txt
+```
 
-The final system should be able to:
+## Set API Keys (PowerShell)
 
-* Accept user queries such as finding nearby locations or planning a trip.
-* Identify start and destination locations from the query.
-* Calculate multiple possible routes between locations.
-* Evaluate road segments for winter-related hazards.
-* Recommend the fastest and safest routes.
-* Display routes and hazard information on an interactive map.
-* Provide estimated travel times and basic travel suggestions.
+```powershell
+$env:WEATHER_API_KEY="your_weatherapi_key"
+$env:GEMINI_API_KEY="your_gemini_api_key"
+```
 
-## Technologies (Planned)
+If you use Command Prompt instead of PowerShell:
 
-* Frontend: Web-based interactive map interface
-* Backend: API service for routing and hazard analysis
-* Database: Spatial database for storing road and location data
-* External Data: Weather and road condition data sources
+```cmd
+set WEATHER_API_KEY=your_weatherapi_key
+set GEMINI_API_KEY=your_gemini_api_key
+```
 
-## Project Context
+## Run the Backend
 
-This project is developed as part of the ENGO 651 course and demonstrates the integration of geospatial data, web mapping, and intelligent decision support for winter travel planning.
+From the `Backend` folder:
+
+```bash
+python -m uvicorn main:app
+```
+
+You should see:
+
+```text
+Uvicorn running on http://127.0.0.1:8000
+```
+
+## Run the Frontend
+
+Open a second terminal in the project root folder:
+
+```bash
+cd ENGO651-project
+python -m http.server 5500
+```
+
+Then open this in your browser:
+
+```text
+http://127.0.0.1:5500
+```
+
+Or, if you use VS Code:
+
+```text
+Right click index.html → Open with Live Server
+```
+
+## API Endpoints
+
+```text
+POST /ai-query
+POST /osrm-route
+POST /route-risk
+GET  /dem-bounds
+```
+
+## Example Usage
+
+```text
+Take me to the airport
+Find Tim Hortons
+Take me to University of Calgary
+```
+
+## Risk Level Thresholds
+
+```text
+0–4   = LOW
+5–9   = MEDIUM
+10+   = HIGH
+```
+
+## Slope Classification
+
+```text
+Slope <= 0.05      → Flat
+0.05 < Slope <= 0.15 → Moderate
+Slope > 0.15       → Steep
+```
+
+## Common Errors
+
+If you see:
+
+```text
+Loaded Weather API key: None
+```
+
+your Weather API key was not set.
+
+If you see:
+
+```text
+401 API key required
+```
+
+your WeatherAPI key is missing or invalid.
+
+If you see:
+
+```text
+503 UNAVAILABLE
+```
+
+Gemini is temporarily overloaded. Wait a few minutes and try again.
+
+## Author
+Wei He  
+Chethan Karthikeya Sundharesh
