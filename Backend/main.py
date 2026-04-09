@@ -452,6 +452,15 @@ class RouteRiskRequest(BaseModel):
     route: list
     risk_score: float | None = None
 
+class ExplanationRequest(BaseModel):
+    risk_level: str
+    reasons: list[str]
+
+@app.post("/generate-explanation")
+def generate_explanation(req: ExplanationRequest):
+    explanation = generate_ai_explanation(req.risk_level, req.reasons)
+    return {"ai_explanation": explanation}
+
 # --------------------------------------------------
 # Main route risk endpoint
 # Calculates:
@@ -621,13 +630,11 @@ def route_risk(req: RouteRiskRequest):
 
     if coverage < 0.8:  # threshold (you can tweak)
         reasons.append("limited terrain data on this route")
-    ai_explanation = generate_ai_explanation(final_level, reasons)
     incident_count = count_incidents_near_route(req.route)
     return {
         "avg_score": total_score,
         "risk_level": final_level,
         "reasons": reasons,
-        "ai_explanation": ai_explanation,
         "incident_count": incident_count,
         "accidents_per_km": round(accidents_per_km, 2)
     }
