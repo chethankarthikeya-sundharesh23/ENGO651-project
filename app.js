@@ -369,10 +369,10 @@ async function getRoute(startLat, startLon, endLat, endLon){
 
         const riskData = await riskResponse.json();
 
-        console.log(`Route ${i + 1}: risk=${riskData.avg_score}, incidents=${riskData.incident_count}`);
+        console.log(`Route ${i + 1}: risk=${riskData.avg_score}, density=${riskData.accidents_per_km} accidents/km`);
 
         // find best (LOWEST score)
-        const combinedScore = riskData.avg_score * 10 + (baseDuration / 60);
+        const combinedScore = Math.round(riskData.avg_score * 10 + (baseDuration / 60));
         console.log(`Route ${i}:`);
         console.log("  Duration (min):", Math.round(baseDuration / 60));
         console.log("  Risk score:", riskData.avg_score);
@@ -390,14 +390,29 @@ async function getRoute(startLat, startLon, endLat, endLon){
     // Draw BEST route
     if (bestRoute) {
 
-        L.geoJSON(bestRoute.geometry, {
-            color: 'blue',
-            weight: 6
-        }).addTo(map);
+    const explanationResponse = await fetch("http://localhost:8000/generate-explanation", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            risk_level: bestRoute.risk.risk_level,
+            reasons: bestRoute.risk.reasons
+        })
+    });
 
-        showRiskPanel(bestRoute.risk, bestRoute.duration);
+    const explanationData = await explanationResponse.json();
 
-        console.log("Safest route selected");
+    bestRoute.risk.ai_explanation = explanationData.ai_explanation;
+
+    L.geoJSON(bestRoute.geometry, {
+        color: 'blue',
+        weight: 6
+    }).addTo(map);
+
+    showRiskPanel(bestRoute.risk, bestRoute.duration);
+
+    console.log("Safest route selected");
     }
 }
 // --------------------------------------------------
