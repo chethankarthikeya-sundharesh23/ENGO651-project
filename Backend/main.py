@@ -7,12 +7,7 @@ import math
 import requests
 import os
 import rasterio
-# --------------------------------------------------
-# Load required libraries for backend routing system
-# FastAPI = backend server
-# rasterio = DEM elevation access
-# shapely = spatial geometry operations
-# --------------------------------------------------
+
 with open("Calgey_Traffic_Incidents_20260310.geojson", "r", encoding="utf-8") as f:
     incidents_data = json.load(f)
 incident_points = []
@@ -28,6 +23,16 @@ app = FastAPI()
 # Return elevation value from DEM at a given latitude/longitude
 # --------------------------------------------------
 def get_elevation(lat, lon):
+    """
+    Retrieve elevation from the DEM raster at a given latitude and longitude.
+
+    Args:
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
+
+    Returns:
+        float: Elevation value in meters.
+    """
     row, col = dem.index(lon, lat)
     elevation = dem.read(1)[row, col]
     return float(elevation)
@@ -37,6 +42,19 @@ def get_elevation(lat, lon):
 # Slope = sqrt(dx² + dy²)
 # --------------------------------------------------
 def get_slope(lat, lon):
+    """
+    Estimate terrain slope at a given location using DEM raster data.
+
+    The slope is computed using elevation differences between neighboring cells
+    in the x (east-west) and y (north-south) directions.
+
+    Args:
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
+
+    Returns:
+        float: Slope value (unitless gradient). Returns 0 if computation fails.
+    """
 
     row, col = dem.index(lon, lat)
     data = dem.read(1)
@@ -77,6 +95,19 @@ print("Loaded Weather API key:", WEATHER_API_KEY)
 #   simplified weather code
 # --------------------------------------------------
 def get_weather(lat, lon):
+    """
+   Fetch current weather data from WeatherAPI for a given location.
+
+   Args:
+       lat (float): Latitude of the location.
+       lon (float): Longitude of the location.
+
+   Returns:
+       tuple:
+           temp (float): Temperature in Celsius.
+           wind (float): Wind speed in km/h.
+           weather_code (int): Simplified weather condition code.
+   """
     url = "https://api.weatherapi.com/v1/current.json"
 
     params = {
@@ -122,6 +153,19 @@ def get_weather(lat, lon):
 # Looks for incidents within 5 km of the input location
 # --------------------------------------------------
 def get_road_condition(lat, lon):
+    """
+    Retrieve nearby road condition information from Alberta 511 API.
+
+    Searches for traffic incidents within a 5 km radius of the given location.
+
+    Args:
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
+
+    Returns:
+        str: Description of road condition (e.g., "Clear Road", "Snow", "Closed"),
+             or "No Data" if unavailable.
+    """
 
     url = "https://services.arcgis.com/ArcGIS/rest/services/Traffic_Events/FeatureServer/0/query"
 
@@ -161,6 +205,15 @@ def get_road_condition(lat, lon):
 # Example: Snow, Rain, Clear, Cloudy
 # --------------------------------------------------
 def interpret_weather(code):
+    """
+   Convert numeric weather codes into human-readable categories.
+
+   Args:
+       code (int): Weather condition code.
+
+   Returns:
+       str: Weather type ("Snow", "Rain", "Clear", "Cloudy", or "Unknown").
+   """
 
     if code is None:
         return "Unknown"
@@ -173,17 +226,31 @@ def interpret_weather(code):
         return "Clear"
     else:
         return "Cloudy"
-# --------------------------------------------------
-# Calculate risk score for a single point
-# Factors:
-#   - temperature
-#   - weather type
-#   - wind
-#   - slope
-#   - road condition
-# Returns a numeric score, risk level, and explanation list
-# --------------------------------------------------
+
 def calculate_risk(temp, wind, slope, condition, weather_type):
+    """
+    Compute a driving risk score based on environmental and road factors.
+
+    Factors considered:
+        - Temperature
+        - Weather type
+        - Wind speed
+        - Terrain slope
+        - Road conditions
+
+    Args:
+        temp (float): Temperature in Celsius.
+        wind (float): Wind speed in km/h.
+        slope (float): Terrain slope.
+        condition (str): Road condition description.
+        weather_type (str): Interpreted weather type.
+
+    Returns:
+        tuple:
+            score (int): Numerical risk score.
+            level (str): Risk level ("LOW", "MEDIUM", "HIGH").
+            reasons (list): List of contributing risk factors.
+    """
 
     score = 0
     reasons = []
@@ -260,11 +327,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# --------------------------------------------------
-# Generate a short AI explanation for the selected route
-# Uses Gemini to summarize the most important risk factors
-# --------------------------------------------------
+
 def generate_ai_explanation(risk_level, reasons):
+    """
+    Generate a short natural-language explanation of driving risk using Gemini API.
+
+    Args:
+        risk_level (str): Overall risk level ("LOW", "MEDIUM", "HIGH").
+        reasons (list): List of contributing factors.
+
+    Returns:
+        str: AI-generated explanation (max ~50 words).
+    """
 
     api_key = os.getenv("GEMINI_API_KEY")
 
@@ -324,6 +398,18 @@ class Query(BaseModel):
 #   "Calgary International Airport"
 # --------------------------------------------------
 def extract_destination(query):
+    """
+    Extract a destination place name from a natural language query using Gemini API.
+
+    Example:
+        "Take me to the airport" → "Calgary International Airport"
+
+    Args:
+        query (str): User input query.
+
+    Returns:
+        str: Extracted destination name.
+    """
 
     api_key = os.getenv("GEMINI_API_KEY")
 
@@ -378,14 +464,24 @@ def extract_destination(query):
         return query
 
 
-# --------------------------------------------------
-# Main endpoint for destination search
-# 1. Extract destination from user query
-# 2. Geocode destination with OpenStreetMap
-# 3. Compute initial weather / slope / road risk
-# --------------------------------------------------
+
 @app.post("/ai-query")
 def ai_query(q: Query):
+    """
+    Process a natural language navigation query.
+
+    Workflow:
+        1. Extract destination using AI
+        2. Geocode location using OpenStreetMap
+        3. Fetch weather, slope, and road condition
+        4. Compute risk score
+
+    Args:
+        q (Query): User query object.
+
+    Returns:
+        dict: Destination details, environmental data, and risk analysis.
+    """
 
     user_text = q.query
 
@@ -458,19 +554,34 @@ class ExplanationRequest(BaseModel):
 
 @app.post("/generate-explanation")
 def generate_explanation(req: ExplanationRequest):
+    """
+    Generate a short AI explanation for a given risk level and reasons.
+
+    Args:
+        req (ExplanationRequest): Contains risk level and contributing reasons.
+
+    Returns:
+        dict: AI-generated explanation text.
+    """
     explanation = generate_ai_explanation(req.risk_level, req.reasons)
     return {"ai_explanation": explanation}
 
-# --------------------------------------------------
-# Main route risk endpoint
-# Calculates:
-#   - global weather risk
-#   - local slope and road condition risk
-#   - historical accident density
-#   - final route risk level and explanation
-# --------------------------------------------------
 @app.post("/route-risk")
 def route_risk(req: RouteRiskRequest):
+    """
+    Calculate overall driving risk for a route.
+
+    Includes:
+        - Global factors (weather, temperature, wind)
+        - Local factors (slope, road conditions)
+        - Historical accident density
+
+    Args:
+        req (RouteRiskRequest): Route coordinates.
+
+    Returns:
+        dict: Risk score, level, reasons, and accident statistics.
+    """
 
     if not req.route:
         return {"error": "No route points"}
@@ -644,6 +755,12 @@ def route_risk(req: RouteRiskRequest):
 # --------------------------------------------------
 @app.get("/dem-bounds")
 def dem_bounds():
+    """
+    Return the geographic bounds of the DEM raster.
+
+    Returns:
+        dict: Minimum and maximum latitude and longitude of DEM coverage.
+    """
 
     bounds = dem.bounds
 
@@ -657,6 +774,16 @@ def dem_bounds():
 # Check whether a point falls inside the DEM coverage area
 # --------------------------------------------------
 def is_within_dem(lat, lon):
+    """
+    Check if a coordinate lies within the DEM coverage area.
+
+    Args:
+        lat (float): Latitude.
+        lon (float): Longitude.
+
+    Returns:
+        bool: True if inside DEM bounds, False otherwise.
+    """
     bounds = dem.bounds
 
     return (
@@ -673,12 +800,20 @@ class RouteQuery(BaseModel):
     endLon: float
     wpLat: float | None = None
     wpLon: float | None = None
-# --------------------------------------------------
-# Request route geometry from OSRM
-# Returns one or more possible routes between start and end
-# --------------------------------------------------
+
 @app.post("/osrm-route")
 def osrm_route(q: RouteQuery):
+    """
+    Fetch driving route(s) from OSRM between given points.
+
+    Supports optional waypoint routing.
+
+    Args:
+        q (RouteQuery): Start, end, and optional waypoint coordinates.
+
+    Returns:
+        dict: OSRM routing response containing route geometries and details.
+    """
 
     # Build coordinate string for OSRM request
     # If a waypoint exists, route goes:
@@ -716,11 +851,17 @@ def osrm_route(q: RouteQuery):
     except Exception as e:
         print("OSRM exception:", e)
         return {"routes": []}
-# --------------------------------------------------
-# Calculate total route length using the Haversine formula
-# Returns route length in kilometers
-# --------------------------------------------------
+
 def calculate_route_length_km(route_coords):
+    """
+    Compute total route length using the Haversine formula.
+
+    Args:
+        route_coords (list): List of [lon, lat] coordinate pairs.
+
+    Returns:
+        float: Total distance in kilometers.
+    """
     total_km = 0
 
     for i in range(1, len(route_coords)):
@@ -743,15 +884,18 @@ def calculate_route_length_km(route_coords):
         total_km += R * c
 
     return total_km
-# --------------------------------------------------
-# Count how many historical incident points lie close to the route
-# threshold = maximum distance from route line to incident point
-# --------------------------------------------------
+
 def count_incidents_near_route(route_coords, threshold=0.0001):
     """
-    threshold ≈ 10 m in lat/lon degrees
-    """
+    Count how many historical traffic incidents are near a route.
 
+    Args:
+        route_coords (list): List of [lon, lat] coordinates defining the route.
+        threshold (float): Maximum distance (in degrees) from route to count incidents.
+
+    Returns:
+        int: Number of nearby incidents.
+    """
     line = LineString(route_coords)
 
     count = 0
